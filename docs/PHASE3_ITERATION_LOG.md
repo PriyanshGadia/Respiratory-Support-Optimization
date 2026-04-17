@@ -1,8 +1,6 @@
 # Phase 3 Iteration Log
 
-> **Author working note:** I keep this log intentionally blunt because it is my trace of what changed, why it changed, and which evidence file proved it.
->
-> **Why this matters:** The goal is reproducibility of decisions, not polished narrative.
+This log records what changed, why it changed, and which evidence artifact supports the change.
 
 Document Version: 1.0
 Date: March 20, 2026
@@ -119,7 +117,7 @@ It is intended for reproducibility, peer review, and design-control traceability
   - analysis/19_phase3_readiness_packet.py
   - analysis/logs/phase3_hardware_evidence_status.json
 
-### v2.10 - Blocker Evidence Template Scaffolding
+### v2.10 - Blocker Evidence Scaffold Initialization
 - Date: 2026-03-20
 - Change: Added concrete report/checklist templates for P1/P2 blocker evidence artifacts (HIL timing, relief bench, actuator, seal, external reviews, standards drafts, independent review).
 - Rationale: Convert blocker closure from planning-only to execution-ready documentation workflow.

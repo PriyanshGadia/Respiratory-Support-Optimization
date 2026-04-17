@@ -1,8 +1,6 @@
 # ML Deep Dive: Pes-Grounded DeltaPL Prediction in PSV
 
-> **Author working note:** I wrote this companion because the full report was too broad for ML readers who just wanted modeling choices, failure modes, and uncertainty behavior.
->
-> **Intent:** Keep this document candid about what did not generalize, not just what looked good in one split.
+This companion focuses on modeling choices, uncertainty behavior, and the failure modes that mattered most during validation.
 
 Document version: 1.0  
 Date: 2026-03-17  

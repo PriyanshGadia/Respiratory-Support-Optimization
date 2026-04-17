@@ -1,8 +1,6 @@
 # REBOOT Standalone Dataset Tester
 
-> **Author working note:** I built this tool because I needed a quick way to test external waveform files without touching the main training pipeline.
->
-> **Practical intent:** The UI is intentionally simple so data mapping mistakes are obvious before any downstream analysis runs.
+This standalone tool exists for quick external waveform testing without changing the main training pipeline.
 
 This folder contains a separate single-application GUI built on the existing REBOOT analysis code.
 

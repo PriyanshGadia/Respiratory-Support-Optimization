@@ -1,8 +1,6 @@
 # Phase 2 Project Presentation Guide (Panel + Paper Draft)
 
-> **Author working note:** I put this guide together after several dry runs where the story drifted, so this version reflects the sequence that actually worked in practice.
->
-> **Use it like a script backbone:** Keep the structure, but speak naturally and adapt examples to the audience in the room.
+This guide is structured as a practical talk sequence that stays close to the actual project decision trail.
 
 This document is a presentation-ready narrative for Phase 2 only, synthesized from:
 

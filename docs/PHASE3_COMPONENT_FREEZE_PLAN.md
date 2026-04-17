@@ -1,12 +1,10 @@
 # Phase 3 Component Freeze Plan
 
-> **Author working note:** I use this template as an execution tracker, so blank owner/status cells are intentional signals that closure work is still pending.
->
-> **Working expectation:** A component is not frozen until supplier identity and verification artifacts are both in place.
+This execution tracker keeps freeze decisions tied to supplier identity and verification artifacts.
 
 Document Version: 1.0
 Date: March 20, 2026
-Status: Template (not yet frozen)
+Status: Working draft (freeze in progress)
 
 ---
 
@@ -51,5 +49,5 @@ Freeze completion must support these evidence flags in analysis/logs/phase3_hard
 
 ## Notes
 
-- This template supports research-to-engineering transition planning only.
+- This plan supports research-to-engineering transition planning only.
 - Hardware gate remains closed until all linked evidence and sign-offs are complete.

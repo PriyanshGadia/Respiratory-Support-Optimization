@@ -1,8 +1,6 @@
 # Phase 3 Risk Register (Draft)
 
-> **Author working note:** I maintain this as a living risk ledger, not a one-time compliance artifact, so open items are left visible until evidence is actually closed.
->
-> **Practical rule I follow:** If I cannot point to an artifact path, the risk stays open.
+This is a live risk ledger. Items remain open until the linked evidence artifact exists and has been reviewed.
 
 Document Version: 1.0
 Date: March 19, 2026
@@ -162,7 +160,7 @@ From analysis/logs/phase3_blocker_tracker.csv and phase3_blocker_tracker.json:
 - This tracker is intended as the working artifact for blocker retirement between review cycles.
 
 From analysis/logs/phase3_evidence_pack/index.json:
-- Per-blocker evidence template files are now scaffolded under analysis/logs/phase3_evidence_pack/.
+- Per-blocker evidence files are now scaffolded under analysis/logs/phase3_evidence_pack/.
 - Each blocker file contains owner/date placeholders, required evidence text, and review sign-off fields.
 - This evidence pack is intended to capture closure artifacts before toggling any hardware evidence flags.
 

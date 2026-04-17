@@ -1,10 +1,8 @@
 # IEC 60601-1 Preliminary Assessment (Research Draft)
 
-> **Author working note:** I use this checklist as a gap finder during design iteration, so open fields are deliberate until clause-level evidence is attached.
->
-> **Scope reminder:** This is a pre-compliance planning artifact, not a completed standards dossier.
+This checklist is used to identify clause-level gaps during iteration; open fields indicate evidence still pending.
 
-Status: Draft template
+Status: Working draft
 Date:
 Owner:
 Linked blocker: process_evidence_missing:iec60601_1_prelim_complete

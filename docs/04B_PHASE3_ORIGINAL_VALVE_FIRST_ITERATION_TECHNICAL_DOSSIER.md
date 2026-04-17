@@ -1,8 +1,6 @@
 # Phase 3 Original Valve - First Iteration Mechanical Dossier
 
-> **Author working note:** I kept this dossier as a transparent record of the first iteration, including mistakes, because those corrections directly shaped the current redesign.
->
-> **Why it stays in the repo:** It preserves design traceability and prevents us from repeating the same assumptions.
+This dossier is kept as a traceable record of the first iteration, including mistakes that directly informed the redesign.
 
 Date: 2026-03-25  
 Status: Research-stage engineering dossier for panel review (not manufacturing release, not clinical use)

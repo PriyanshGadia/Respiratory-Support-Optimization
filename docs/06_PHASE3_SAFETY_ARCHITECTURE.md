@@ -1,8 +1,6 @@
 # Phase 3 Safety Architecture (Component-Level Draft)
 
-> **Author working note:** I wrote this section-by-section alongside fault-injection runs so the control stack maps directly to testable timing behavior.
->
-> **What to expect:** Anything marked as simulation-only remains provisional until hardware timing evidence is linked.
+This architecture maps control logic to testable timing behavior; simulation-only items remain provisional until hardware evidence is linked.
 
 Document Version: 1.0
 Date: March 19, 2026

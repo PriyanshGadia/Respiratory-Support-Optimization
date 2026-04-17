@@ -1,8 +1,6 @@
 # Phase 3 Mechanical Design - Safety-Gated Redesign
 
-> **Author working note:** I rewrote this after we invalidated the earlier "final" claims, so the tone is intentionally explicit about what is verified versus what is still provisional.
->
-> **How I use this doc:** It is my checklist-backed baseline for deciding what can move forward and what stays blocked.
+This redesign baseline explicitly separates verified evidence from provisional assumptions so review decisions stay grounded in traceable artifacts.
 
 Document Version: 4.0
 Date: March 19, 2026

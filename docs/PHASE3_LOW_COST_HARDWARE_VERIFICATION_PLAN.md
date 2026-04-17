@@ -1,8 +1,6 @@
 # Phase 3 Low-Cost Hardware Verification Plan
 
-> **Author working note:** I built this plan to keep blocker closure realistic under budget pressure while still preserving auditable safety evidence.
->
-> **Execution mindset:** Cost constraints are real, but evidence standards stay fixed.
+This plan prioritizes low-cost execution while keeping safety evidence standards and traceability intact.
 
 Document Version: 1.0
 Date: March 20, 2026
