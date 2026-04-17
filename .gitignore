@@ -39,3 +39,17 @@ analysis/valve_export_dualpath_concept/
 # Large local datasets (keep lightweight repo metadata/docs/code only)
 data/**
 !data/.gitkeep
+!data/README.md
+
+# Local literature and binary artifacts (not redistributed in public repo)
+papers/**
+!papers/README.md
+
+app/**
+!app/README.md
+
+# Binary report exports
+docs/*.pdf
+
+# Draft extraction artifacts
+docs/report/input.md

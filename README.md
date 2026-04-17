@@ -85,6 +85,16 @@ This repository is ready for upload with the current evidence state.
 
 ---
 
+## Public Repository Scope
+
+- License for original project code and documentation: [LICENSE](LICENSE)
+- Third-party material policy and redistribution boundaries: [THIRD_PARTY_NOTICE.md](THIRD_PARTY_NOTICE.md)
+- Raw/local datasets are intentionally excluded from Git: [data/README.md](data/README.md)
+- Large local app binaries are intentionally excluded from Git: [app/README.md](app/README.md)
+- Local literature PDF copies are intentionally excluded from Git: [papers/README.md](papers/README.md)
+
+---
+
 ## How We Got This Working (After a Few Iterations)
 
 - We started by locking protocol decisions before running models, because changing thresholds after seeing results makes the whole analysis less trustworthy.
