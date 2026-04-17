@@ -50,6 +50,8 @@ app/**
 
 # Binary report exports
 docs/*.pdf
+docs/*.docx
 
 # Draft extraction artifacts
 docs/report/input.md
+docs/report/*.png
