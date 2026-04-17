@@ -1,0 +1,246 @@
+PAGES: 3
+
+===== PAGE 1 =====
+Intelligent Document Processing & Insight Engine
+Priyansh Gadia (Roll Number: 23035010192)
+Internship / Term Project Report
+Trimester 7 / 8 / 9
+B.Sc. (Honours) Data Science and Artificial Intelligence
+Indian Institute of Technology Guwahati, India
+p.gadia@op.iitg.ac.in
+ABSTRACT The second section explains the boundaries of the problem and
+the boundaries of its solutions. The third section explains both the
+The upcoming report describes the complete process of building mathematical process and the architectural design process. The
+and executing an Intelligent Document Processing (IDP) pipeline fourth section contains research findings which show latency results
+which was developed over five months using Oracle Cloud through latency matrices and throughput results through throughput
+Infrastructure (OCI) Data Science Professional certification program. graphs. The architectural trade-offs receive evaluation in section 5
+The project provides a solution to the enterprise problem of while section 6 provides the concluding statements.
+unstructured data extraction by implementing a system that works in
+parallel with its intelligent routing system which uses multiple tiers 2. PROBLEM STATEMENT AND OBJECTIVES
+for data handling. A hybrid processing approach was developed to
+connect local multi-core optimization with simulated OCI cloud- 2.1. Problem Statement
+native orchestration which includes OCI Data Flow and Generative Let a document stream 𝒟={𝑑 ,𝑑 ,…,𝑑 } consist of multi-page
+1 2 𝑛
+AI. The testing results show that the parallelized extraction process PDFs of varying structural entropy. The objective is to design a
+achieves nearly linear scaling performance which operates at 𝒪(𝑝/𝑐) processing function Φ(𝑑)→𝒴 (where 𝒴 represents structured
+𝑖
+wall-time. metadata and semantic insights) that satisfies the following
+The dual-tier sentiment analysis engine makes an optimal trade-off constraints:
+between computational performance and accuracy by achieving zero
+latency for low-priority tasks and maintaining 250 MB RAM
+1. Memory Constraint: The spatial complexity of text
+transformer attention for more complex queries. The MLOps
+extraction must remain bounded independently of the total
+integration works successfully for essential functions, but the
+document length 𝐿(𝑑)
+evaluation shows that its operations depend heavily on local compute 𝑖
+alternatives which shows the need for sophisticated cloud-native
+solutions to achieve full enterprise-level scalability. 2. Latency Constraint: The total inference time 𝑇 (𝑑) must
+𝑖𝑛𝑓 𝑖
+be minimized by preventing the over-allocation of compute
+Index Terms — Document Processing, Parallel Computing,
+resources (e.g., bypassing LLM generation for standard
+Natural Language Processing, MLOps, OCI Data Science,
+sentiment queries).
+Transformer Models.
+1. INTRODUCTION 2.2. Objectives
+The current data situation in modern businesses creates a major The specific goals aimed to achieve during the project were:
+problem because they can handle structured data yet unstructured 1. The goal of the project is to create a document extraction
+data with important value stays locked in unstable formats like PDFs system that operates in parallel while keeping its space
+and contracts and invoices. The existing sequential extraction requirements at 𝒪(𝑆 )
+𝑚𝑎𝑥
+systems encounter critical memory limitations which lead to
+2. for each worker without depending on the size of the entire
+extended delays during their inference process.
+document collection.
+3. The project develops an Intelligent Router that uses an
+This project establishes a dependable Intelligent Document
+LRU-cached deterministic hash map to achieve 𝒪(1)
+Processing (IDP) engine which achieves high processing capacity
+through its design based on OCI Data Science Professional training performance in eliminating duplicate queries.
+programs. Our system uses an asynchronous multi-tiered routing 4. The dual-tier analytical engine combines lexicon-based
+framework to replace traditional monolithic architectures which we heuristics and transformer-based attention models to
+consider our main design approach. provide balanced analysis functions.
+
+--TABLES--
+table_count=0
+
+===== PAGE 2 =====
+5. The continuous MLOps pipeline operates through • C. Dual-Tier Sentiment Analysis (Layer 3):
+configuration-as-code which enables OCI deployments to
+be tested in simulated environments. The deep learning system faced expensive inference expenses which
+required the implementation of a cascading sentiment architecture as
+a solution. The VADER method computes the normalized compound
+3. METHODOLOGY / APPROACH
+score
+3.1. Core Architectural Workflow
+𝐶=
+∑𝑣𝑖
+The system operates through three separate computational layers
+√∑𝑣2+𝛼
+which include Data Ingestion as Layer 1 and Intelligent Routing as 𝑖
+Layer 2 and Analytical Inference as Layer 3. The system ingests raw
+which enables microsecond execution times for its calculations in
+documents into partitioned Parquet files which then undergo hashing
+comparison to the HuggingFace pipeline batched attention
+before the router dynamically dispatches them according to their
+mechanisms.
+latent semantic features.
+3.2. Technical Details 4. EXPERIMENTS AND RESULTS
+• A. Parallelized Extraction (Layer 1): 4.1. Experimental Setup
+The streaming extraction model enables the creation of an
+The execution environment for the pipeline matched the OCI
+OCI Data Flow application prototype which operates
+compute shape specifications through the use of
+without using PySpark's JVM overhead. Let 𝑃 represent
+VM.Standard.E4.Flex instances which had 4 OCPUs and 32
+the complete set of pages in a batch while 𝐶 designates the
+GB RAM capacity and were managed through a YAML
+number of physical processing units that can be used. The
+pipeline that used declarative orchestration.
+wall-time complexity of the system is defined by the
+following equation:
+4.2. Performance Metrics and Results
+𝑁𝑑𝑜𝑐𝑠
+𝑡(𝑝)
+𝑇 ≈ ∑
+𝑖
++𝜖
+𝑤𝑎𝑙𝑙 𝐶 𝐼/𝑂
+𝑖=1 • Throughput Profiling:
+The pdfminer.six streaming process through page-by-page
+The parallel PDF processor demonstrated high concurrency
+streaming results in a maximum space requirement per
+efficiency. The single-threaded baseline took 412 seconds to
+process that stays below the limit of 𝒪(𝑆 ) which
+𝑚𝑎𝑥 process the simulated corpus which contained 10,000
+prevents out-of-memory (OOM) errors from occurring
+document pages. By using ProcessPoolExecutor on 8 logical
+during processing of large documents.
+cores the execution time decreased to 58 seconds which
+resulted in approximately 7.1 times faster performance.
+• B. Intelligent Routing Heuristic (Layer 2):
+The core innovation lies in the IntelligentRouter.
+Documents are vectorized and passed through a
+classification mapping:
+Let 𝒦={invoice, contract, email, report} be the set of
+known document vectors.The routing function 𝑓 (𝑥) is
+𝑟𝑜𝑢𝑡𝑒
+defined as:
+ℳ 𝑖𝑓 𝑡𝑦𝑝𝑒(𝑥)∈𝓀
+𝑓 (𝑥)={ 𝓈𝓅ℯ𝒸
+𝑟𝑜𝑢𝑡𝑒 ℳ 𝑖𝑓 𝑡𝑦𝑝𝑒(𝑥) ∉ 𝓀
+ℒℒℳ
+Where ℳ represents highly optimized, lazy-loaded
+𝓈𝓅ℯ𝒸
+specialist models, and ℳ represents a direct HTTP API
+ℒℒℳ
+connection to an Ollama LLM, utilizing Server-Sent Events
+(SSE) for token streaming without LangChain abstraction
+overhead. Identical document hashes are intercepted by an
+Fig 1: Extraction Throughput (Pages/Second) vs. Thread Count
+LRU Cache, reducing compute latency to 𝒪(1) for repeated
+queries.
+
+--TABLES--
+table_count=0
+
+===== PAGE 3 =====
+• Latency and Memory Footprint Matrix: 6. CONCLUSION AND FUTURE WORK
+The inference profiling of Layer 3 models demonstrates the
+The IDP Insight Engine has been developed to meet two essential
+different performance trade-offs that exist between
+requirements which include efficient document processing and
+heuristic analysis methods and transformer-based analysis
+flexible semantic content routing. The system achieves optimal
+methods.
+performance by utilizing mathematical methods to determine
+extraction space boundaries while applying dual-tier inference models
+Model / Initialization Inference Peak Fallback
+to its local computing resources.
+Endpoint Latency Memory Behavior
+The existing system needs major structural changes because its current
+Overhead
+performance level can only function as a basic simulation instead of
+VADER ∼ 0 ms <1 ms ∼0 MB N/A
+an enterprise-grade cloud infrastructure. The upcoming work will
+(Tier 1) (Baseline)
+concentrate on:
+DistilBERT Lazy Load ∼50 ms $250$ N/A
+(Tier 2) (CPU) MB 1. The organization will discontinue its use of local
+Ollama Direct HTTP Token External Degrades concurrent.futures pool while implementing OCI Data Flow
+LLM Streaming Process to PySpark clusters as their new managed solution.
+VADER 2. The organization will shut down its local HTTP Ollama
+Table 1: Computational footprint of deployed analytical endpoints. endpoint while transitioning to the OCI Generative AI
+inference API which operates as a managed service.
+5. DISCUSSION 3. The system will implement a strict retry-and-queue
+mechanism through OCI Streaming to eliminate the
+The IDP architecture assessment begins with an ineffective VADER fallback method which currently
+impartial and thorough evaluation which shows specific operates.
+strengths and particular engineering flaws.
+• Resource Optimization vs. Distributed 7. ARTIFACTS AND DEMONSTRATIONS
+Limits: The resource extraction system
+• Code Repository:
+operates at its best performance level when
+https://github.com/PriyanshGadia/Intelligent-Document-
+used on a single machine. The Python
+Processing-And-Insight-Engine/tree/main
+multiprocessing method creates a fundamental
+• Video Demo: https://youtu.be/xxxxxx
+barrier that stops users from expanding their
+OCI Data Flow (Spark) environment
+operation. The existing data lake system for 8. REFERENCES
+enterprise users faces a major limitation
+[1] Oracle Cloud Infrastructure Data Science Professional Certification
+because it does not provide true JVM/PySpark
+Handbook, Oracle University, 2025.
+distributed map-reduce architectures.
+[2] Shinyama, Y. "PDFMiner.six: Python PDF Parser and Analyzer," Python
+• Fallback Degradation: The Intelligent
+Software Foundation.
+Router system uses a fault-tolerance heuristic
+[3] Hutto, C.J. & Gilbert, E.E. (2014). "VADER: A Parsimonious Rule-
+which operates on unstable logical
+based Model for Sentiment Analysis of Social Media Text." Eighth
+foundations. The system automatically uses International Conference on Weblogs and Social Media (ICWSM-14).
+VADER sentiment analysis for unknown Ann Arbor, MI.
+document types when the generative LLM [4] Sanh, V., et al. (2019). "DistilBERT, a distilled version of BERT: smaller,
+(Ollama) API fails or times out. The process of faster, cheaper and lighter." arXiv preprint arXiv:1910.01108.
+applying a lexicon sentiment heuristic to a
+technical report or complex invoice document
+occurs because the LLM is unreachable which
+brings no value to business operations while
+creating semantic confusion in the Parquet
+sink output.
+• MLOps Decoupling: The pipeline.yaml file
+creates a system to link data ingestion
+processes with scikit-learn deployment
+through its execution graph which runs the
+whole system. The OCI certification
+principles require model serialization to the
+OCI Model Catalog because local SQLite or
+filesystem binaries do not meet this
+requirement.
+
+--TABLES--
+table_count=1
+[TABLE 1]
+Model /
+Endpoint | Initialization | Inference
+Latency | Peak
+Memory
+Overhead | Fallback
+Behavior
+VADER
+(Tier 1) | ∼ 0 ms | <1 ms | ∼0 MB | N/A
+(Baseline)
+DistilBERT
+(Tier 2) | Lazy Load | ∼50 ms
+(CPU) | $250$
+MB | N/A
+Ollama
+LLM | Direct HTTP | Token
+Streaming | External
+Process | Degrades
+to
+VADER
