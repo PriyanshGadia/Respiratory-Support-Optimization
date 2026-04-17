@@ -119,37 +119,37 @@ def build_feature_row(event_dict: dict,
     full_window_df : [-150ms, +350ms] window around t_cycle (or None)
     include_clinical : whether to include ps/peep/fio2 features
     """
-    row = {}
+    feature_row = {}
 
     for feat in SCALAR_FEATURES:
-        row[feat] = event_dict.get(feat, np.nan)
+        feature_row[feat] = event_dict.get(feat, np.nan)
 
     if include_clinical:
         for feat in CLINICAL_FEATURES:
-            row[feat] = event_dict.get(feat, np.nan)
+            feature_row[feat] = event_dict.get(feat, np.nan)
 
-    row["ets_defaulted_flag"] = int(event_dict.get("ets_defaulted", False))
+    feature_row["ets_defaulted_flag"] = int(event_dict.get("ets_defaulted", False))
 
     # Simple interaction features (domain-driven, Paw+Flow only)
-    if np.isfinite(row.get("f_peak", np.nan)) and np.isfinite(row.get("insp_dur_s", np.nan)):
-        row["flow_time_product"] = float(row["f_peak"] * row["insp_dur_s"])
-    if np.isfinite(row.get("delta_paw_max", np.nan)) and np.isfinite(row.get("dPaw_dt_max", np.nan)):
-        row["paw_stress_index"] = float(row["delta_paw_max"] * row["dPaw_dt_max"])
+    if np.isfinite(feature_row.get("f_peak", np.nan)) and np.isfinite(feature_row.get("insp_dur_s", np.nan)):
+        feature_row["flow_time_product"] = float(feature_row["f_peak"] * feature_row["insp_dur_s"])
+    if np.isfinite(feature_row.get("delta_paw_max", np.nan)) and np.isfinite(feature_row.get("dPaw_dt_max", np.nan)):
+        feature_row["paw_stress_index"] = float(feature_row["delta_paw_max"] * feature_row["dPaw_dt_max"])
 
     # Waveform shape features
-    shape_feats = extract_waveform_features(event_dict, full_window_df, fs)
-    row.update(shape_feats)
+    waveform_shape_features = extract_waveform_features(event_dict, full_window_df, fs)
+    feature_row.update(waveform_shape_features)
 
     # Targets
-    row["y_regression"]  = event_dict.get("delta_pl_max", np.nan)
-    row["y_class"]       = event_dict.get("event_positive", np.nan)
+    feature_row["y_regression"] = event_dict.get("delta_pl_max", np.nan)
+    feature_row["y_class"] = event_dict.get("event_positive", np.nan)
 
-    # Identifiers (not used as ML features; dropped before training)
-    row["patient_id"]    = event_dict.get("patient_id", "")
-    row["source"]        = event_dict.get("source", "")
-    row["t_cycle"]       = event_dict.get("t_cycle", np.nan)
+    # Keep identifiers for traceability in error analysis reports.
+    feature_row["patient_id"] = event_dict.get("patient_id", "")
+    feature_row["source"] = event_dict.get("source", "")
+    feature_row["t_cycle"] = event_dict.get("t_cycle", np.nan)
 
-    return row
+    return feature_row
 
 
 def get_feature_columns(df: pd.DataFrame) -> list:

@@ -203,9 +203,9 @@ def _search_pass_candidate(base: SafetyFaultParams) -> dict:
 def main() -> int:
     os.makedirs(C.LOGS_DIR, exist_ok=True)
 
-    p = SafetyFaultParams()
-    traces, results, t_ms = _run_fault_suite(p)
-    candidate = _search_pass_candidate(p)
+    fault_params = SafetyFaultParams()
+    traces, results, t_ms = _run_fault_suite(fault_params)
+    candidate = _search_pass_candidate(fault_params)
 
     trace_cols = [
         t_ms,
@@ -232,12 +232,12 @@ def main() -> int:
         comments="",
     )
 
-    out = {
+    summary_payload = {
         "version": "1.0",
         "date": "2026-03-19",
-        "params": asdict(p),
+        "params": asdict(fault_params),
         "criteria": {
-            "fail_open_timing_target_ms": p.fail_open_timing_target_ms,
+            "fail_open_timing_target_ms": fault_params.fail_open_timing_target_ms,
         },
         "results": results,
         "candidate_search": candidate,
@@ -248,7 +248,7 @@ def main() -> int:
     }
 
     with open(OUT_JSON, "w", encoding="utf-8") as fh:
-        json.dump(out, fh, indent=2)
+        json.dump(summary_payload, fh, indent=2)
 
     log.info("Saved: %s", OUT_CSV)
     log.info("Saved: %s", OUT_JSON)

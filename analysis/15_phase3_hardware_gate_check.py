@@ -270,7 +270,7 @@ def main() -> int:
     blockers = c_block + r_block + s_block + p_block + x_block + xr_block
     hardware_ready = bool(c_pass and r_pass and s_pass and p_pass and x_pass and xr_pass)
 
-    out = {
+    gate_summary = {
         "version": "1.0",
         "date": "2026-03-20",
         "inputs": {
@@ -308,7 +308,7 @@ def main() -> int:
     }
 
     with open(OUT_SUMMARY, "w", encoding="utf-8") as fh:
-        json.dump(out, fh, indent=2)
+        json.dump(gate_summary, fh, indent=2)
 
     log.info("Saved: %s", OUT_SUMMARY)
     log.info("Hardware prototyping gate pass: %s", hardware_ready)

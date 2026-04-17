@@ -138,7 +138,7 @@ def main() -> int:
     with open(OUT_MD, "w", encoding="utf-8") as fh:
         fh.write("\n".join(md_lines) + "\n")
 
-    out = {
+    markdown_index_payload = {
         "version": "1.0",
         "generated_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "source_count": len(index),
@@ -148,7 +148,7 @@ def main() -> int:
         "compendium": _rel(OUT_MD),
     }
     with open(OUT_JSON, "w", encoding="utf-8") as fh:
-        json.dump(out, fh, indent=2)
+        json.dump(markdown_index_payload, fh, indent=2)
 
     print(f"Saved: {OUT_MD}")
     print(f"Saved: {OUT_JSON}")

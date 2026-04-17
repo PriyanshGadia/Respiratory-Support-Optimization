@@ -260,11 +260,11 @@ def main() -> int:
         except Exception:
             existing = {}
 
-    rows = []
+    tracker_rows = []
     for b in blockers:
         m = _meta(b)
         prev_row = existing.get(b, {})
-        rows.append(
+        tracker_rows.append(
             {
                 "blocker": b,
                 "domain": m["domain"],
@@ -281,13 +281,13 @@ def main() -> int:
             }
         )
 
-    df = pd.DataFrame(rows)
-    df.to_csv(OUT_CSV, index=False)
+    tracker_df = pd.DataFrame(tracker_rows)
+    tracker_df.to_csv(OUT_CSV, index=False)
 
-    total_estimated_cost = float(df["estimated_cost_usd"].sum()) if len(df) else 0.0
-    assigned = int((df["owner"].astype(str).str.strip() != "").sum()) if len(df) else 0
+    total_estimated_cost = float(tracker_df["estimated_cost_usd"].sum()) if len(tracker_df) else 0.0
+    assigned = int((tracker_df["owner"].astype(str).str.strip() != "").sum()) if len(tracker_df) else 0
 
-    out = {
+    tracker_summary = {
         "version": "1.0",
         "date": "2026-03-20",
         "gate_pass": bool(gate.get("hardware_prototyping_gate", {}).get("pass", False)),
@@ -298,7 +298,7 @@ def main() -> int:
         "tracker_csv": os.path.relpath(OUT_CSV, C.ANALYSIS_DIR).replace("\\", "/"),
     }
     with open(OUT_JSON, "w", encoding="utf-8") as fh:
-        json.dump(out, fh, indent=2)
+        json.dump(tracker_summary, fh, indent=2)
 
     return 0
 

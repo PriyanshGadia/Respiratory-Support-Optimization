@@ -81,7 +81,7 @@ def main() -> int:
             }
         )
 
-    out = {
+    index_payload = {
         "version": "1.0",
         "generated_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "source_tracker": os.path.relpath(IN_TRACKER, C.ANALYSIS_DIR).replace("\\", "/"),
@@ -90,7 +90,7 @@ def main() -> int:
         "entries": entries,
     }
     with open(OUT_INDEX, "w", encoding="utf-8") as fh:
-        json.dump(out, fh, indent=2)
+        json.dump(index_payload, fh, indent=2)
 
     return 0
 

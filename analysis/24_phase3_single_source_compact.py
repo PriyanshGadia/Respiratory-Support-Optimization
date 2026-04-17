@@ -57,13 +57,13 @@ def _artifact_meta(path: str) -> dict[str, Any]:
 def _tracker_snapshot(path: str, limit: int = 40) -> list[dict[str, str]]:
     if not os.path.exists(path):
         return []
-    rows: list[dict[str, str]] = []
+    snapshot_rows: list[dict[str, str]] = []
     with open(path, "r", encoding="utf-8", newline="") as fh:
         reader = csv.DictReader(fh)
         for i, r in enumerate(reader):
             if i >= limit:
                 break
-            rows.append(
+            snapshot_rows.append(
                 {
                     "blocker": str(r.get("blocker", "")),
                     "domain": str(r.get("domain", "")),
@@ -73,7 +73,7 @@ def _tracker_snapshot(path: str, limit: int = 40) -> list[dict[str, str]]:
                     "evidence_artifact": str(r.get("evidence_artifact", "")),
                 }
             )
-    return rows
+    return snapshot_rows
 
 
 def _extract_key_state() -> dict[str, Any]:
@@ -153,7 +153,7 @@ def main() -> int:
     key_state = _extract_key_state()
     tracker_rows = _tracker_snapshot(os.path.join(C.LOGS_DIR, "phase3_blocker_tracker.csv"), limit=50)
 
-    out = {
+    ssot_payload = {
         "version": "2.0",
         "generated_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "purpose": "compact_phase3_single_source_of_truth",
@@ -176,12 +176,12 @@ def main() -> int:
     }
 
     with open(OUT_JSON, "w", encoding="utf-8") as fh:
-        json.dump(out, fh, indent=2)
+        json.dump(ssot_payload, fh, indent=2)
 
     md_lines = [
         "# Phase 3 Single Source of Truth",
         "",
-        f"- Generated: {out['generated_utc']}",
+        f"- Generated: {ssot_payload['generated_utc']}",
         f"- Hardware gate pass: {key_state.get('hardware_gate_pass', False)}",
         f"- Open blockers: {key_state.get('n_blockers', 'n/a')}",
         f"- External mode: {key_state.get('external_mode', 'unknown')}",

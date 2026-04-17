@@ -18,7 +18,7 @@ import pandas as pd
 import config as C
 
 TRACKER = os.path.join(C.LOGS_DIR, "phase3_blocker_tracker.csv")
-OUT = TRACKER
+OUT_TRACKER = TRACKER
 
 
 def _role_owner(role: str) -> str:
@@ -102,8 +102,8 @@ def main() -> int:
         if owner:
             n_assigned += 1
 
-    df.to_csv(OUT, index=False)
-    print(f"Saved: {OUT}")
+    df.to_csv(OUT_TRACKER, index=False)
+    print(f"Saved: {OUT_TRACKER}")
     print(f"assigned_rows={n_assigned}")
     print(f"mode={'all_open' if args.all else 'p1_only'}")
     return 0

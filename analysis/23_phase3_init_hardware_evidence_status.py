@@ -55,7 +55,7 @@ DEFAULT = {
 
 
 def _merge(base: dict[str, Any], current: dict[str, Any]) -> dict[str, Any]:
-    out = deepcopy(base)
+    merged_status = deepcopy(base)
     for key, val in base.items():
         if key not in current:
             continue
@@ -63,14 +63,14 @@ def _merge(base: dict[str, Any], current: dict[str, Any]) -> dict[str, Any]:
         if isinstance(val, dict) and isinstance(cur, dict):
             for k2, v2 in val.items():
                 if k2 in cur:
-                    out[key][k2] = cur[k2]
+                    merged_status[key][k2] = cur[k2]
         else:
-            out[key] = cur
+            merged_status[key] = cur
     # Force conservative reviewed default mode unless explicitly set to raw/mitigated.
-    mode = str(out.get("external_validation", {}).get("external_shift_mode", "mitigated")).strip().lower()
+    mode = str(merged_status.get("external_validation", {}).get("external_shift_mode", "mitigated")).strip().lower()
     if mode not in {"raw", "mitigated"}:
-        out["external_validation"]["external_shift_mode"] = "mitigated"
-    return out
+        merged_status["external_validation"]["external_shift_mode"] = "mitigated"
+    return merged_status
 
 
 def main() -> int:

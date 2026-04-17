@@ -95,7 +95,7 @@ def _perturbation_pass_rates(dpaw_cmd: np.ndarray, baseline: np.ndarray, thresho
         "combined_severe": (0.45, 9.0, 8.0, 48),
     }
 
-    out = {}
+    scenario_pass_rates = {}
     for name, (noise_sigma, jitter_ms, lag_ms, seed) in scenarios.items():
         rng = np.random.default_rng(seed)
         sev = np.clip((baseline - threshold) / 5.0, 0.0, 1.5)
@@ -103,20 +103,20 @@ def _perturbation_pass_rates(dpaw_cmd: np.ndarray, baseline: np.ndarray, thresho
         jitter_penalty = 0.020 * abs(jitter_ms) * (0.8 + 0.4 * sev)
         lag_penalty = 0.035 * max(0.0, lag_ms) * (0.9 + 0.6 * sev)
         y = np.maximum(0.0, dpaw_cmd + noise + jitter_penalty + lag_penalty)
-        out[name] = float(np.mean(y <= threshold))
+        scenario_pass_rates[name] = float(np.mean(y <= threshold))
 
     moderate_min = min(
-        out["sensor_noise_light"],
-        out["sensor_noise_moderate"],
-        out["timing_jitter_moderate"],
-        out["actuator_lag_moderate"],
-        out["combined_moderate"],
+        scenario_pass_rates["sensor_noise_light"],
+        scenario_pass_rates["sensor_noise_moderate"],
+        scenario_pass_rates["timing_jitter_moderate"],
+        scenario_pass_rates["actuator_lag_moderate"],
+        scenario_pass_rates["combined_moderate"],
     )
 
     return {
         "moderate_min_pass_rate": float(moderate_min),
-        "combined_severe_pass_rate": float(out["combined_severe"]),
-        "robustness_gate_met": float(moderate_min >= 0.90 and out["combined_severe"] >= 0.80),
+        "combined_severe_pass_rate": float(scenario_pass_rates["combined_severe"]),
+        "robustness_gate_met": float(moderate_min >= 0.90 and scenario_pass_rates["combined_severe"] >= 0.80),
     }
 
 
@@ -160,24 +160,24 @@ def _build_model_based_dpaw(df: pd.DataFrame, cfg: ModelConfig, threshold: float
 
 
 def _evaluate_config(df: pd.DataFrame, cfg: ModelConfig, threshold: float = 5.0) -> tuple[pd.DataFrame, dict]:
-    out = df.copy()
-    out["delta_paw_model_based"] = _build_model_based_dpaw(df, cfg, threshold)
+    evaluated_df = df.copy()
+    evaluated_df["delta_paw_model_based"] = _build_model_based_dpaw(df, cfg, threshold)
 
-    baseline = out["delta_paw_baseline"].to_numpy(dtype=float)
-    cmd = out["delta_paw_model_based"].to_numpy(dtype=float)
-    open_ms = out["open_time_ms"].to_numpy(dtype=float)
+    baseline = evaluated_df["delta_paw_baseline"].to_numpy(dtype=float)
+    cmd = evaluated_df["delta_paw_model_based"].to_numpy(dtype=float)
+    open_ms = evaluated_df["open_time_ms"].to_numpy(dtype=float)
 
-    out["pass_dpaw_le_5_model_based"] = (out["delta_paw_model_based"] <= threshold).astype(int)
+    evaluated_df["pass_dpaw_le_5_model_based"] = (evaluated_df["delta_paw_model_based"] <= threshold).astype(int)
 
-    tf = out["tf"].to_numpy(dtype=float)
-    dpl_base = out["delta_pl_baseline"].to_numpy(dtype=float)
-    out["delta_pl_model_based"] = np.where(
+    tf = evaluated_df["tf"].to_numpy(dtype=float)
+    dpl_base = evaluated_df["delta_pl_baseline"].to_numpy(dtype=float)
+    evaluated_df["delta_pl_model_based"] = np.where(
         np.isfinite(tf) & (tf > 0.0),
-        out["delta_paw_model_based"] * tf,
-        dpl_base * (out["delta_paw_model_based"] / np.maximum(1e-9, baseline)),
+        evaluated_df["delta_paw_model_based"] * tf,
+        dpl_base * (evaluated_df["delta_paw_model_based"] / np.maximum(1e-9, baseline)),
     )
 
-    nominal_pass = float(np.mean(out["pass_dpaw_le_5_model_based"]))
+    nominal_pass = float(np.mean(evaluated_df["pass_dpaw_le_5_model_based"]))
     perturb = _perturbation_pass_rates(cmd, baseline, threshold)
     plant = _plant_pass_rates(cmd, baseline, open_ms, threshold)
 
@@ -186,7 +186,7 @@ def _evaluate_config(df: pd.DataFrame, cfg: ModelConfig, threshold: float = 5.0)
         **perturb,
         **plant,
     }
-    return out, metrics
+    return evaluated_df, metrics
 
 
 def _search_best(df: pd.DataFrame) -> tuple[pd.DataFrame, ModelConfig, dict]:
@@ -208,22 +208,22 @@ def _search_best(df: pd.DataFrame) -> tuple[pd.DataFrame, ModelConfig, dict]:
             continue
 
         cfg = ModelConfig(low_sp, mid_sp, high_sp, tau, dead, lat, eff_floor)
-        cand_df, m = _evaluate_config(df, cfg)
+        candidate_df, candidate_metrics = _evaluate_config(df, cfg)
 
         # Rank by plant performance first, then perturbation robustness.
         score = (
-            0.50 * m["plant_moderate_pass_rate"]
-            + 0.30 * m["plant_severe_pass_rate"]
-            + 0.10 * m["moderate_min_pass_rate"]
-            + 0.05 * m["combined_severe_pass_rate"]
-            + 0.05 * m["nominal_pass_rate"]
+            0.50 * candidate_metrics["plant_moderate_pass_rate"]
+            + 0.30 * candidate_metrics["plant_severe_pass_rate"]
+            + 0.10 * candidate_metrics["moderate_min_pass_rate"]
+            + 0.05 * candidate_metrics["combined_severe_pass_rate"]
+            + 0.05 * candidate_metrics["nominal_pass_rate"]
         )
 
         if score > best_score:
             best_score = score
-            best_df = cand_df
+            best_df = candidate_df
             best_cfg = cfg
-            best_metrics = m
+            best_metrics = candidate_metrics
 
     assert best_df is not None and best_cfg is not None and best_metrics is not None
     return best_df, best_cfg, best_metrics

@@ -69,9 +69,9 @@ def _severity_bucket(baseline: np.ndarray, group_ids: np.ndarray) -> np.ndarray:
 
 
 def _synthesize_external(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
-    out = df.copy()
-    baseline = _pick_baseline(out)
-    group_ids = _group_ids(out)
+    replay_df = df.copy()
+    baseline = _pick_baseline(replay_df)
+    group_ids = _group_ids(replay_df)
     bucket = _severity_bucket(baseline, group_ids)
 
     open_base = np.where(bucket == 0, cfg["open_low_ms"], np.where(bucket == 1, cfg["open_mid_ms"], cfg["open_high_ms"]))
@@ -96,11 +96,11 @@ def _synthesize_external(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     min_dpaw = np.maximum(1.8, 2.2 - 0.2 * np.clip((baseline - 5.0) / 5.0, 0.0, 1.5))
     dpaw_target = np.maximum(dpaw_target, min_dpaw)
 
-    out["patient_id"] = group_ids
-    out["delta_paw_baseline_proxy"] = baseline
-    out["open_time_ms"] = open_cmd
-    out["delta_paw_external_target"] = dpaw_target
-    return out
+    replay_df["patient_id"] = group_ids
+    replay_df["delta_paw_baseline_proxy"] = baseline
+    replay_df["open_time_ms"] = open_cmd
+    replay_df["delta_paw_external_target"] = dpaw_target
+    return replay_df
 
 
 def _scenario_pass(df: pd.DataFrame, tau: float, dead: float, lat: float, sigma: float, seed: int) -> np.ndarray:
@@ -146,14 +146,14 @@ def main() -> int:
     with open(IN_CONFIG, "r", encoding="utf-8") as fh:
         cfg = json.load(fh)["selected_config"]
 
-    ext = pd.read_csv(args.input, low_memory=False)
-    sim = _synthesize_external(ext, cfg)
+    external_df = pd.read_csv(args.input, low_memory=False)
+    sim = _synthesize_external(external_df, cfg)
 
     p_nom = _scenario_pass(sim, 2.0, 1.0, 1.0, 0.08, seed=900)
     p_mod = _scenario_pass(sim, 6.0, 4.0, 4.0, 0.18, seed=901)
     p_sev = _scenario_pass(sim, 12.0, 8.0, 9.0, 0.30, seed=902)
 
-    nom, nom_min, nom_worst, _ = _stats(sim, p_nom)
+    nom, _, _, _ = _stats(sim, p_nom)
     mod, mod_min, mod_worst, _ = _stats(sim, p_mod)
     sev, sev_min, sev_worst, sev_gp = _stats(sim, p_sev)
 
@@ -163,7 +163,7 @@ def main() -> int:
     patient_gate = bool(mod_min >= 0.90 and sev_min >= 0.80)
     strict_gate = bool(aggregate_gate and patient_gate)
 
-    out = {
+    summary_payload = {
         "version": "1.0",
         "date": "2026-03-20",
         "inputs": {
@@ -197,7 +197,7 @@ def main() -> int:
     }
 
     with open(out_summary, "w", encoding="utf-8") as fh:
-        json.dump(out, fh, indent=2)
+        json.dump(summary_payload, fh, indent=2)
 
     log.info("Saved: %s", out_patient)
     log.info("Saved: %s", out_summary)

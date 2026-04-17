@@ -102,7 +102,7 @@ def main() -> int:
 
     total_s = round(time.time() - t_all, 3)
 
-    out = {
+    run_summary = {
         "version": "1.0",
         "generated_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "status": status,
@@ -115,12 +115,12 @@ def main() -> int:
     }
 
     with open(OUT_SUMMARY, "w", encoding="utf-8") as fh:
-        json.dump(out, fh, indent=2)
+        json.dump(run_summary, fh, indent=2)
 
     lines = [
         "# Phase 3 Parallel Runner Summary",
         "",
-        f"- Generated: {out['generated_utc']}",
+        f"- Generated: {run_summary['generated_utc']}",
         f"- Status: {status}",
         f"- Total duration (s): {total_s}",
         "",

@@ -25,13 +25,13 @@ log = logging.getLogger("19_phase3_readiness_packet")
 
 def _run(cmd: list[str], timeout_s: int = 600) -> dict[str, Any]:
     proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s)
-    out = (proc.stdout or "").strip()
-    err = (proc.stderr or "").strip()
+    stdout_text = (proc.stdout or "").strip()
+    stderr_text = (proc.stderr or "").strip()
     return {
         "cmd": cmd,
         "exit_code": int(proc.returncode),
-        "stdout_tail": out[-2000:],
-        "stderr_tail": err[-2000:],
+        "stdout_tail": stdout_text[-2000:],
+        "stderr_tail": stderr_text[-2000:],
     }
 
 

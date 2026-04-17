@@ -65,9 +65,9 @@ def _severity_bucket(df: pd.DataFrame) -> np.ndarray:
 
 
 def _synthesize(df: pd.DataFrame, cfg: PlantAwareConfig, bucket: np.ndarray) -> pd.DataFrame:
-    out = df.copy()
+    synthesized_df = df.copy()
 
-    baseline = out["delta_paw_baseline"].to_numpy(dtype=float)
+    baseline = synthesized_df["delta_paw_baseline"].to_numpy(dtype=float)
 
     open_base = np.where(bucket == 0, cfg.open_low_ms, np.where(bucket == 1, cfg.open_mid_ms, cfg.open_high_ms)).astype(float)
     set_base = np.where(bucket == 0, cfg.set_low, np.where(bucket == 1, cfg.set_mid, cfg.set_high)).astype(float)
@@ -97,19 +97,19 @@ def _synthesize(df: pd.DataFrame, cfg: PlantAwareConfig, bucket: np.ndarray) -> 
     min_dpaw = np.maximum(1.8, 2.2 - 0.2 * sev)
     dpaw_target = np.maximum(dpaw_target, min_dpaw)
 
-    out["open_time_ms"] = open_cmd
-    out["delta_paw_plant_aware"] = dpaw_target
-    out["pass_dpaw_le_5_plant_aware"] = (dpaw_target <= 5.0).astype(int)
+    synthesized_df["open_time_ms"] = open_cmd
+    synthesized_df["delta_paw_plant_aware"] = dpaw_target
+    synthesized_df["pass_dpaw_le_5_plant_aware"] = (dpaw_target <= 5.0).astype(int)
 
-    tf = out["tf"].to_numpy(dtype=float)
-    dpl_base = out["delta_pl_baseline"].to_numpy(dtype=float)
-    out["delta_pl_plant_aware"] = np.where(
+    tf = synthesized_df["tf"].to_numpy(dtype=float)
+    dpl_base = synthesized_df["delta_pl_baseline"].to_numpy(dtype=float)
+    synthesized_df["delta_pl_plant_aware"] = np.where(
         np.isfinite(tf) & (tf > 0.0),
-        out["delta_paw_plant_aware"] * tf,
-        dpl_base * (out["delta_paw_plant_aware"] / np.maximum(1e-9, baseline)),
+        synthesized_df["delta_paw_plant_aware"] * tf,
+        dpl_base * (synthesized_df["delta_paw_plant_aware"] / np.maximum(1e-9, baseline)),
     )
 
-    return out
+    return synthesized_df
 
 
 def _plant_rates(df: pd.DataFrame, target_col: str, threshold: float = 5.0) -> dict:
@@ -258,16 +258,16 @@ def main() -> int:
     if missing:
         raise ValueError(f"Missing required columns: {missing}")
 
-    out, cfg, metrics = _search(df)
-    out.to_csv(OUT_PRED, index=False)
+    plant_aware_df, cfg, metrics = _search(df)
+    plant_aware_df.to_csv(OUT_PRED, index=False)
 
     summary = {
         "version": "1.0",
         "date": "2026-03-20",
         "inputs": {
             "source_file": os.path.relpath(IN_FILE, C.ANALYSIS_DIR).replace("\\", "/"),
-            "n_breaths": int(len(out)),
-            "n_patients": int(out["patient_id"].astype(str).nunique()),
+            "n_breaths": int(len(plant_aware_df)),
+            "n_patients": int(plant_aware_df["patient_id"].astype(str).nunique()),
         },
         "selected_config": {
             "open_low_ms": cfg.open_low_ms,

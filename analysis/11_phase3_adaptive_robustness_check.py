@@ -53,45 +53,45 @@ def _scenario_table() -> list[Scenario]:
 
 
 def _apply_scenario(df: pd.DataFrame, s: Scenario, seed: int = 42) -> pd.DataFrame:
-    out = df.copy()
+    scenario_df = df.copy()
 
     rng = np.random.default_rng(seed)
 
-    dpaw_base = out["delta_paw_adaptive"].to_numpy(dtype=float)
-    baseline = out["delta_paw_baseline"].to_numpy(dtype=float)
+    dpaw_base = scenario_df["delta_paw_adaptive"].to_numpy(dtype=float)
+    baseline = scenario_df["delta_paw_baseline"].to_numpy(dtype=float)
 
     # Severity proxy from baseline burden (bounded 0..1.5)
     sev = np.clip((baseline - 5.0) / 5.0, 0.0, 1.5)
 
-    noise = rng.normal(0.0, s.sensor_noise_sigma, size=len(out))
+    noise = rng.normal(0.0, s.sensor_noise_sigma, size=len(scenario_df))
     jitter_penalty = 0.020 * abs(s.timing_jitter_ms) * (0.8 + 0.4 * sev)
     lag_penalty = 0.035 * max(0.0, s.actuator_lag_ms) * (0.9 + 0.6 * sev)
 
     dpaw_stress = np.maximum(0.0, dpaw_base + noise + jitter_penalty + lag_penalty)
 
-    tf = out["tf"].to_numpy(dtype=float)
-    dpl_base = out["delta_pl_baseline"].to_numpy(dtype=float)
+    tf = scenario_df["tf"].to_numpy(dtype=float)
+    dpl_base = scenario_df["delta_pl_baseline"].to_numpy(dtype=float)
     dpl_stress = np.where(
         np.isfinite(tf) & (tf > 0.0),
         dpaw_stress * tf,
         dpl_base * (dpaw_stress / np.maximum(1e-9, baseline)),
     )
 
-    out["scenario"] = s.name
-    out["delta_paw_stress"] = dpaw_stress
-    out["delta_pl_stress"] = np.maximum(0.0, dpl_stress)
-    out["pass_dpaw_le_5_stress"] = (out["delta_paw_stress"] <= 5.0).astype(int)
-    out["noise_sigma"] = s.sensor_noise_sigma
-    out["timing_jitter_ms"] = s.timing_jitter_ms
-    out["actuator_lag_ms"] = s.actuator_lag_ms
+    scenario_df["scenario"] = s.name
+    scenario_df["delta_paw_stress"] = dpaw_stress
+    scenario_df["delta_pl_stress"] = np.maximum(0.0, dpl_stress)
+    scenario_df["pass_dpaw_le_5_stress"] = (scenario_df["delta_paw_stress"] <= 5.0).astype(int)
+    scenario_df["noise_sigma"] = s.sensor_noise_sigma
+    scenario_df["timing_jitter_ms"] = s.timing_jitter_ms
+    scenario_df["actuator_lag_ms"] = s.actuator_lag_ms
 
-    return out
+    return scenario_df
 
 
 def _scenario_stats(stress_df: pd.DataFrame) -> pd.DataFrame:
-    rows = []
+    scenario_rows = []
     for name, g in stress_df.groupby("scenario", sort=False):
-        rows.append(
+        scenario_rows.append(
             {
                 "scenario": name,
                 "n_breaths": int(len(g)),
@@ -100,13 +100,13 @@ def _scenario_stats(stress_df: pd.DataFrame) -> pd.DataFrame:
                 "pass_rate_le_5": float(np.nanmean(g["pass_dpaw_le_5_stress"])),
             }
         )
-    return pd.DataFrame(rows)
+    return pd.DataFrame(scenario_rows)
 
 
 def _patient_stats(stress_df: pd.DataFrame) -> pd.DataFrame:
-    rows = []
+    patient_rows = []
     for (scenario, pid), g in stress_df.groupby(["scenario", "patient_id"], sort=False):
-        rows.append(
+        patient_rows.append(
             {
                 "scenario": scenario,
                 "patient_id": str(pid),
@@ -116,7 +116,7 @@ def _patient_stats(stress_df: pd.DataFrame) -> pd.DataFrame:
                 "pass_rate_le_5": float(np.nanmean(g["pass_dpaw_le_5_stress"])),
             }
         )
-    return pd.DataFrame(rows)
+    return pd.DataFrame(patient_rows)
 
 
 def main() -> int:

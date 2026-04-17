@@ -254,18 +254,18 @@ def main() -> int:
 
     params = ReliefParams()
     envelope = HardwareFeasibilityEnvelope()
-    result = simulate_step_response(params)
-    best = search_relief_candidates(params, envelope)
+    response_result = simulate_step_response(params)
+    candidate_search = search_relief_candidates(params, envelope)
 
     np.savetxt(
         OUT_CSV,
-        result["trace"],
+        response_result["trace"],
         delimiter=",",
         header="time_s,lift_mm,velocity_m_s,flow_lps",
         comments="",
     )
 
-    out = {
+    summary_payload = {
         "version": "1.0",
         "date": "2026-03-19",
         "params": asdict(params),
@@ -274,24 +274,24 @@ def main() -> int:
             "required_orifice_area_mm2": float(req_orifice_area_m2(params) * 1e6),
         },
         "hardware_feasibility_envelope": asdict(envelope),
-        "results": result["summary"],
-        "candidate_search": best,
+        "results": response_result["summary"],
+        "candidate_search": candidate_search,
     }
 
     with open(OUT_JSON, "w", encoding="utf-8") as fh:
-        json.dump(out, fh, indent=2)
+        json.dump(summary_payload, fh, indent=2)
 
     log.info("Saved: %s", OUT_CSV)
     log.info("Saved: %s", OUT_JSON)
-    log.info("Relief response pass (<=20 ms): %s", out["results"]["response_time_pass"])
-    log.info("Relief flow capacity pass: %s", out["results"]["flow_capacity_pass"])
-    uncon = best["best_unconstrained"]
+    log.info("Relief response pass (<=20 ms): %s", summary_payload["results"]["response_time_pass"])
+    log.info("Relief flow capacity pass: %s", summary_payload["results"]["flow_capacity_pass"])
+    best_unconstrained_candidate = candidate_search["best_unconstrained"]
     log.info(
         "Best unconstrained candidate pass pair: time=%s, flow=%s",
-        uncon["results"]["response_time_pass"],
-        uncon["results"]["flow_capacity_pass"],
+        best_unconstrained_candidate["results"]["response_time_pass"],
+        best_unconstrained_candidate["results"]["flow_capacity_pass"],
     )
-    log.info("Hardware-feasible candidate pass found: %s", best["hardware_feasible_pass_found"])
+    log.info("Hardware-feasible candidate pass found: %s", candidate_search["hardware_feasible_pass_found"])
     return 0
 
 

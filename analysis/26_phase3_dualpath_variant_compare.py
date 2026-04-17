@@ -46,9 +46,9 @@ def _load_meta() -> tuple[float, float]:
     fuse_open_cmh2o = 14.0
     if os.path.exists(IN_DUAL_META):
         with open(IN_DUAL_META, "r", encoding="utf-8") as fh:
-            data = json.load(fh)
-        ratio = _num((data.get("physics_summary", {}) or {}).get("bypass_to_active_area_ratio"), ratio)
-        fuse_open_cmh2o = _num((data.get("params", {}) or {}).get("fuse_open_dp_cmh2o_nominal"), fuse_open_cmh2o)
+            metadata_json = json.load(fh)
+        ratio = _num((metadata_json.get("physics_summary", {}) or {}).get("bypass_to_active_area_ratio"), ratio)
+        fuse_open_cmh2o = _num((metadata_json.get("params", {}) or {}).get("fuse_open_dp_cmh2o_nominal"), fuse_open_cmh2o)
     return ratio, fuse_open_cmh2o
 
 
@@ -63,10 +63,10 @@ def _apply_dualpath_variant(
     fuse_cap: float,
     max_total_assist: float,
 ) -> pd.DataFrame:
-    out = df.copy()
+    dualpath_df = df.copy()
 
-    baseline = out["delta_paw_baseline"].to_numpy(dtype=float)
-    active = out["delta_paw_plant_aware"].to_numpy(dtype=float)
+    baseline = dualpath_df["delta_paw_baseline"].to_numpy(dtype=float)
+    active = dualpath_df["delta_paw_plant_aware"].to_numpy(dtype=float)
 
     required_reduction = np.maximum(0.0, baseline - active)
     sev = np.clip((baseline - 5.0) / 5.0, 0.0, 1.5)
@@ -89,20 +89,20 @@ def _apply_dualpath_variant(
     floor = np.maximum(1.6, 2.1 - 0.2 * sev)
     dual_dpaw = np.maximum(dual_dpaw, floor)
 
-    out["delta_paw_dualpath"] = dual_dpaw
-    out["pass_dpaw_le_5_dualpath"] = (dual_dpaw <= 5.0).astype(int)
-    out["dualpath_assist_factor"] = total_assist
-    out["dualpath_fuse_engaged"] = fuse_engaged.astype(int)
+    dualpath_df["delta_paw_dualpath"] = dual_dpaw
+    dualpath_df["pass_dpaw_le_5_dualpath"] = (dual_dpaw <= 5.0).astype(int)
+    dualpath_df["dualpath_assist_factor"] = total_assist
+    dualpath_df["dualpath_fuse_engaged"] = fuse_engaged.astype(int)
 
-    tf = out["tf"].to_numpy(dtype=float)
-    dpl_base = out["delta_pl_baseline"].to_numpy(dtype=float)
-    out["delta_pl_dualpath"] = np.where(
+    tf = dualpath_df["tf"].to_numpy(dtype=float)
+    dpl_base = dualpath_df["delta_pl_baseline"].to_numpy(dtype=float)
+    dualpath_df["delta_pl_dualpath"] = np.where(
         np.isfinite(tf) & (tf > 0.0),
-        out["delta_paw_dualpath"] * tf,
-        dpl_base * (out["delta_paw_dualpath"] / np.maximum(1e-9, baseline)),
+        dualpath_df["delta_paw_dualpath"] * tf,
+        dpl_base * (dualpath_df["delta_paw_dualpath"] / np.maximum(1e-9, baseline)),
     )
 
-    return out
+    return dualpath_df
 
 
 def _plant_rates(df: pd.DataFrame, target_col: str, threshold: float = 5.0) -> dict:
@@ -160,9 +160,9 @@ def _plant_rates(df: pd.DataFrame, target_col: str, threshold: float = 5.0) -> d
 
 
 def _sweep_best(df: pd.DataFrame, bypass_ratio: float, fuse_open: float, active_rates: dict) -> tuple[pd.DataFrame, dict, pd.DataFrame]:
-    rows = []
+    sweep_rows = []
     best_score = None
-    best_out = None
+    best_prediction_df = None
     best_cfg = None
     best_rates = None
 
@@ -174,7 +174,7 @@ def _sweep_best(df: pd.DataFrame, bypass_ratio: float, fuse_open: float, active_
         [0.05, 0.08, 0.12],
         [0.20, 0.28, 0.35],
     ):
-        out = _apply_dualpath_variant(
+        candidate_df = _apply_dualpath_variant(
             df,
             bypass_ratio=bypass_ratio,
             fuse_open_cmh2o=fuse_open,
@@ -185,7 +185,7 @@ def _sweep_best(df: pd.DataFrame, bypass_ratio: float, fuse_open: float, active_
             fuse_cap=fuse_cap,
             max_total_assist=max_total_assist,
         )
-        rates = _plant_rates(out, "delta_paw_dualpath")
+        rates = _plant_rates(candidate_df, "delta_paw_dualpath")
 
         # Lexicographic improvement objective: severe worst patient first.
         score = (
@@ -195,7 +195,7 @@ def _sweep_best(df: pd.DataFrame, bypass_ratio: float, fuse_open: float, active_
             rates["plant_moderate_pass_rate"],
         )
 
-        rows.append(
+        sweep_rows.append(
             {
                 "trigger_scale": trigger_scale,
                 "base_gain": base_gain,
@@ -214,7 +214,7 @@ def _sweep_best(df: pd.DataFrame, bypass_ratio: float, fuse_open: float, active_
 
         if best_score is None or score > best_score:
             best_score = score
-            best_out = out
+            best_prediction_df = candidate_df
             best_cfg = {
                 "trigger_scale": trigger_scale,
                 "base_gain": base_gain,
@@ -225,12 +225,12 @@ def _sweep_best(df: pd.DataFrame, bypass_ratio: float, fuse_open: float, active_
             }
             best_rates = rates
 
-    assert best_out is not None and best_cfg is not None and best_rates is not None
-    sweep_df = pd.DataFrame(rows).sort_values(
+    assert best_prediction_df is not None and best_cfg is not None and best_rates is not None
+    sweep_df = pd.DataFrame(sweep_rows).sort_values(
         ["plant_severe_min_patient_pass_rate", "plant_severe_pass_rate", "plant_moderate_min_patient_pass_rate", "plant_moderate_pass_rate"],
         ascending=[False, False, False, False],
     )
-    return best_out, {"config": best_cfg, "rates": best_rates}, sweep_df
+    return best_prediction_df, {"config": best_cfg, "rates": best_rates}, sweep_df
 
 
 def main() -> int:
@@ -254,7 +254,7 @@ def main() -> int:
 
     sweep_used = not args.no_sweep
     if sweep_used:
-        out, best, sweep_df = _sweep_best(df, bypass_ratio=bypass_ratio, fuse_open=fuse_open, active_rates=active_rates)
+        dualpath_df, best, sweep_df = _sweep_best(df, bypass_ratio=bypass_ratio, fuse_open=fuse_open, active_rates=active_rates)
         sweep_df.to_csv(OUT_SWEEP, index=False)
         best_cfg = best["config"]
         dual_rates = best["rates"]
@@ -267,7 +267,7 @@ def main() -> int:
             "fuse_cap": 0.06,
             "max_total_assist": 0.20,
         }
-        out = _apply_dualpath_variant(
+        dualpath_df = _apply_dualpath_variant(
             df,
             bypass_ratio=bypass_ratio,
             fuse_open_cmh2o=fuse_open,
@@ -278,14 +278,14 @@ def main() -> int:
             fuse_cap=best_cfg["fuse_cap"],
             max_total_assist=best_cfg["max_total_assist"],
         )
-        dual_rates = _plant_rates(out, "delta_paw_dualpath")
+        dual_rates = _plant_rates(dualpath_df, "delta_paw_dualpath")
 
-    out.to_csv(OUT_PRED, index=False)
+    dualpath_df.to_csv(OUT_PRED, index=False)
 
-    pids = sorted(out["patient_id"].astype(str).unique())
-    rows = []
+    pids = sorted(dualpath_df["patient_id"].astype(str).unique())
+    per_patient_rows = []
     for pid in pids:
-        rows.append(
+        per_patient_rows.append(
             {
                 "patient_id": pid,
                 "moderate_pass_active": active_rates["moderate_per_patient"].get(pid, np.nan),
@@ -296,7 +296,7 @@ def main() -> int:
                 "severe_delta": dual_rates["severe_per_patient"].get(pid, np.nan) - active_rates["severe_per_patient"].get(pid, np.nan),
             }
         )
-    pd.DataFrame(rows).to_csv(OUT_PER_PATIENT, index=False)
+    pd.DataFrame(per_patient_rows).to_csv(OUT_PER_PATIENT, index=False)
 
     summary = {
         "version": "1.0",
@@ -304,8 +304,8 @@ def main() -> int:
         "inputs": {
             "active_predictions": os.path.relpath(IN_ACTIVE, C.ANALYSIS_DIR).replace("\\", "/"),
             "dualpath_metadata": os.path.relpath(IN_DUAL_META, C.ANALYSIS_DIR).replace("\\", "/"),
-            "n_breaths": int(len(out)),
-            "n_patients": int(out["patient_id"].astype(str).nunique()),
+            "n_breaths": int(len(dualpath_df)),
+            "n_patients": int(dualpath_df["patient_id"].astype(str).nunique()),
         },
         "dualpath_surrogate_parameters": {
             "bypass_to_active_area_ratio": float(bypass_ratio),

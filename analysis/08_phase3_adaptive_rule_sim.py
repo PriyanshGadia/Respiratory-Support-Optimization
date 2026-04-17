@@ -36,10 +36,10 @@ def _clamp(x: float, lo: float, hi: float) -> float:
 
 def _safe_float(val: object, default: float = np.nan) -> float:
     try:
-        out = float(val)
-        if np.isnan(out):
+        parsed_value = float(val)
+        if np.isnan(parsed_value):
             return default
-        return out
+        return parsed_value
     except (TypeError, ValueError):
         return default
 
@@ -62,17 +62,17 @@ def _prepare(df: pd.DataFrame) -> pd.DataFrame:
     if missing:
         raise ValueError(f"Missing required columns in combined_predictions.csv: {missing}")
 
-    out = df.copy()
-    out = out[out["source"].astype(str).str.lower() == "ccvw"].copy()
-    out["patient_id"] = out["patient_id"].astype(str)
-    out["t_cycle"] = pd.to_numeric(out["t_cycle"], errors="coerce")
-    out["delta_paw_max"] = pd.to_numeric(out["delta_paw_max"], errors="coerce")
-    out["delta_pl_max"] = pd.to_numeric(out["delta_pl_max"], errors="coerce")
-    out["flow_decel_slope"] = pd.to_numeric(out["flow_decel_slope"], errors="coerce")
-    out["tf"] = pd.to_numeric(out["tf"], errors="coerce")
-    out = out.dropna(subset=["patient_id", "t_cycle", "delta_paw_max", "flow_decel_slope"])
-    out = out.sort_values(["patient_id", "t_cycle"]).reset_index(drop=True)
-    return out
+    prepared_df = df.copy()
+    prepared_df = prepared_df[prepared_df["source"].astype(str).str.lower() == "ccvw"].copy()
+    prepared_df["patient_id"] = prepared_df["patient_id"].astype(str)
+    prepared_df["t_cycle"] = pd.to_numeric(prepared_df["t_cycle"], errors="coerce")
+    prepared_df["delta_paw_max"] = pd.to_numeric(prepared_df["delta_paw_max"], errors="coerce")
+    prepared_df["delta_pl_max"] = pd.to_numeric(prepared_df["delta_pl_max"], errors="coerce")
+    prepared_df["flow_decel_slope"] = pd.to_numeric(prepared_df["flow_decel_slope"], errors="coerce")
+    prepared_df["tf"] = pd.to_numeric(prepared_df["tf"], errors="coerce")
+    prepared_df = prepared_df.dropna(subset=["patient_id", "t_cycle", "delta_paw_max", "flow_decel_slope"])
+    prepared_df = prepared_df.sort_values(["patient_id", "t_cycle"]).reset_index(drop=True)
+    return prepared_df
 
 
 def _derive_thresholds(df: pd.DataFrame) -> Dict[str, float]:
@@ -125,17 +125,17 @@ def _target_open_time_ms(slope: float, prev_delta_paw: float, thr: Dict[str, flo
 
 
 def _simulate(df: pd.DataFrame, thr: Dict[str, float], cfg: Dict[str, float]) -> pd.DataFrame:
-    rows = []
+    simulation_rows = []
 
-    for pid, grp in df.groupby("patient_id", sort=True):
-        grp = grp.sort_values("t_cycle")
+    for pid, patient_group in df.groupby("patient_id", sort=True):
+        patient_group = patient_group.sort_values("t_cycle")
         prev_delta_paw = np.nan
 
-        for _, r in grp.iterrows():
-            base_dpaw = _safe_float(r["delta_paw_max"])
-            base_dpl = _safe_float(r["delta_pl_max"])
-            slope = _safe_float(r["flow_decel_slope"])
-            tf = _safe_float(r["tf"])
+        for _, breath_row in patient_group.iterrows():
+            base_dpaw = _safe_float(breath_row["delta_paw_max"])
+            base_dpl = _safe_float(breath_row["delta_pl_max"])
+            slope = _safe_float(breath_row["flow_decel_slope"])
+            tf = _safe_float(breath_row["tf"])
 
             t_open = _rule_open_time_ms(slope, prev_delta_paw, thr, cfg)
             ets = _adaptive_ets_frac(slope, thr, cfg)
@@ -156,10 +156,10 @@ def _simulate(df: pd.DataFrame, thr: Dict[str, float], cfg: Dict[str, float]) ->
                 scale = dpaw_adapt / max(1e-9, base_dpaw)
                 dpl_adapt = max(0.0, base_dpl * scale) if np.isfinite(base_dpl) else np.nan
 
-            rows.append(
+            simulation_rows.append(
                 {
                     "patient_id": pid,
-                    "t_cycle": _safe_float(r["t_cycle"]),
+                    "t_cycle": _safe_float(breath_row["t_cycle"]),
                     "delta_paw_baseline": base_dpaw,
                     "delta_pl_baseline": base_dpl,
                     "flow_decel_slope": slope,
@@ -177,7 +177,7 @@ def _simulate(df: pd.DataFrame, thr: Dict[str, float], cfg: Dict[str, float]) ->
 
             prev_delta_paw = base_dpaw
 
-    return pd.DataFrame(rows)
+    return pd.DataFrame(simulation_rows)
 
 
 def _summarize(breath_df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
@@ -248,31 +248,31 @@ def _apply_escalation_policy(
     This remains a concept-level surrogate and must be validated against
     dynamic circuit simulations before any hardware interpretation.
     """
-    out = breath_df.copy()
+    escalated_df = breath_df.copy()
 
-    p95 = float(np.nanquantile(out["delta_paw_baseline"], 0.95))
+    p95 = float(np.nanquantile(escalated_df["delta_paw_baseline"], 0.95))
     denom = max(1.0, p95 - 5.0)
 
-    sev = ((out["delta_paw_baseline"] - 5.0) / denom).clip(lower=0.0, upper=1.0)
-    high_event = (out["prev_delta_paw"] > thr["delta_paw_q90"]).astype(float)
+    sev = ((escalated_df["delta_paw_baseline"] - 5.0) / denom).clip(lower=0.0, upper=1.0)
+    high_event = (escalated_df["prev_delta_paw"] > thr["delta_paw_q90"]).astype(float)
 
     # Additional reduction factor, bounded by actuator/safety envelope.
     scale = 1.0 - assist_gain * sev - high_event_bonus * high_event
     scale = scale.clip(lower=min_factor, upper=1.0)
 
-    out["delta_paw_adaptive"] = np.maximum(0.0, out["delta_paw_adaptive"] * scale)
+    escalated_df["delta_paw_adaptive"] = np.maximum(0.0, escalated_df["delta_paw_adaptive"] * scale)
 
-    tf = out["tf"].astype(float)
-    dpl_base = out["delta_pl_baseline"].astype(float)
+    tf = escalated_df["tf"].astype(float)
+    dpl_base = escalated_df["delta_pl_baseline"].astype(float)
     dpl_new = np.where(
         np.isfinite(tf) & (tf > 0.0),
-        out["delta_paw_adaptive"] * tf,
-        dpl_base * (out["delta_paw_adaptive"] / np.maximum(1e-9, out["delta_paw_baseline"])),
+        escalated_df["delta_paw_adaptive"] * tf,
+        dpl_base * (escalated_df["delta_paw_adaptive"] / np.maximum(1e-9, escalated_df["delta_paw_baseline"])),
     )
-    out["delta_pl_adaptive"] = np.maximum(0.0, dpl_new)
-    out["pass_dpaw_le_5"] = (out["delta_paw_adaptive"] <= 5.0).astype(int)
+    escalated_df["delta_pl_adaptive"] = np.maximum(0.0, dpl_new)
+    escalated_df["pass_dpaw_le_5"] = (escalated_df["delta_paw_adaptive"] <= 5.0).astype(int)
 
-    return out
+    return escalated_df
 
 
 def _optimize_escalation(
@@ -337,9 +337,9 @@ def _apply_severity_cluster_policy(
     Applies stronger reduction to high-severity clusters while preserving a
     non-zero floor on residual pressure transient estimates.
     """
-    out = breath_df.copy()
+    clustered_df = breath_df.copy()
 
-    patient_base = out.groupby("patient_id", sort=False)["delta_paw_baseline"].mean()
+    patient_base = clustered_df.groupby("patient_id", sort=False)["delta_paw_baseline"].mean()
     q1 = float(np.nanquantile(patient_base, 0.33))
     q2 = float(np.nanquantile(patient_base, 0.66))
 
@@ -352,9 +352,9 @@ def _apply_severity_cluster_policy(
         else:
             severity_mult_map[pid] = 1.40
 
-    mult = out["patient_id"].map(severity_mult_map).astype(float)
+    mult = clustered_df["patient_id"].map(severity_mult_map).astype(float)
 
-    dp = out["delta_paw_adaptive"].astype(float)
+    dp = clustered_df["delta_paw_adaptive"].astype(float)
     excess = np.maximum(0.0, dp - threshold_cm_h2o)
     p95 = float(np.nanquantile(dp, 0.95))
     sev_norm = np.clip(excess / max(1e-9, p95 - threshold_cm_h2o), 0.0, 1.0)
@@ -364,19 +364,19 @@ def _apply_severity_cluster_policy(
 
     scaled = dp * (1.0 - reduction)
     floor = floor_factor * dp
-    out["delta_paw_adaptive"] = np.maximum(0.0, np.maximum(scaled, floor))
+    clustered_df["delta_paw_adaptive"] = np.maximum(0.0, np.maximum(scaled, floor))
 
-    tf = out["tf"].astype(float)
-    dpl_base = out["delta_pl_baseline"].astype(float)
+    tf = clustered_df["tf"].astype(float)
+    dpl_base = clustered_df["delta_pl_baseline"].astype(float)
     dpl_new = np.where(
         np.isfinite(tf) & (tf > 0.0),
-        out["delta_paw_adaptive"] * tf,
-        dpl_base * (out["delta_paw_adaptive"] / np.maximum(1e-9, out["delta_paw_baseline"])),
+        clustered_df["delta_paw_adaptive"] * tf,
+        dpl_base * (clustered_df["delta_paw_adaptive"] / np.maximum(1e-9, clustered_df["delta_paw_baseline"])),
     )
-    out["delta_pl_adaptive"] = np.maximum(0.0, dpl_new)
-    out["pass_dpaw_le_5"] = (out["delta_paw_adaptive"] <= threshold_cm_h2o).astype(int)
+    clustered_df["delta_pl_adaptive"] = np.maximum(0.0, dpl_new)
+    clustered_df["pass_dpaw_le_5"] = (clustered_df["delta_paw_adaptive"] <= threshold_cm_h2o).astype(int)
 
-    return out
+    return clustered_df
 
 
 def _optimize_severity_cluster_policy(
@@ -441,9 +441,9 @@ def _apply_robust_guard_policy(
     Fourth-stage guard policy that biases adaptive output toward robustness
     headroom setpoints by patient severity cluster.
     """
-    out = breath_df.copy()
+    guarded_df = breath_df.copy()
 
-    patient_base = out.groupby("patient_id", sort=False)["delta_paw_baseline"].mean()
+    patient_base = guarded_df.groupby("patient_id", sort=False)["delta_paw_baseline"].mean()
     q1 = float(np.nanquantile(patient_base, 0.33))
     q2 = float(np.nanquantile(patient_base, 0.66))
 
@@ -456,26 +456,26 @@ def _apply_robust_guard_policy(
         else:
             setpoint_map[pid] = high_setpoint
 
-    setpoint = out["patient_id"].map(setpoint_map).astype(float)
-    dp = out["delta_paw_adaptive"].astype(float)
+    setpoint = guarded_df["patient_id"].map(setpoint_map).astype(float)
+    dp = guarded_df["delta_paw_adaptive"].astype(float)
     excess = np.maximum(0.0, dp - setpoint)
 
     # Additional bounded bias for breaths near threshold.
     sev = np.clip((dp - threshold_cm_h2o) / max(1e-9, np.nanquantile(dp, 0.95) - threshold_cm_h2o), 0.0, 1.0)
 
     dp_new = np.maximum(0.0, dp - alpha * excess - beta * sev)
-    out["delta_paw_adaptive"] = dp_new
+    guarded_df["delta_paw_adaptive"] = dp_new
 
-    tf = out["tf"].astype(float)
-    dpl_base = out["delta_pl_baseline"].astype(float)
+    tf = guarded_df["tf"].astype(float)
+    dpl_base = guarded_df["delta_pl_baseline"].astype(float)
     dpl_new = np.where(
         np.isfinite(tf) & (tf > 0.0),
-        out["delta_paw_adaptive"] * tf,
-        dpl_base * (out["delta_paw_adaptive"] / np.maximum(1e-9, out["delta_paw_baseline"])),
+        guarded_df["delta_paw_adaptive"] * tf,
+        dpl_base * (guarded_df["delta_paw_adaptive"] / np.maximum(1e-9, guarded_df["delta_paw_baseline"])),
     )
-    out["delta_pl_adaptive"] = np.maximum(0.0, dpl_new)
-    out["pass_dpaw_le_5"] = (out["delta_paw_adaptive"] <= threshold_cm_h2o).astype(int)
-    return out
+    guarded_df["delta_pl_adaptive"] = np.maximum(0.0, dpl_new)
+    guarded_df["pass_dpaw_le_5"] = (guarded_df["delta_paw_adaptive"] <= threshold_cm_h2o).astype(int)
+    return guarded_df
 
 
 def _robustness_proxy_metrics(breath_df: pd.DataFrame, threshold_cm_h2o: float) -> Dict[str, float]:

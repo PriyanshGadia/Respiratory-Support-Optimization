@@ -57,12 +57,12 @@ def _scenarios() -> list[PlantScenario]:
 
 
 def _apply_plant_scenario(df: pd.DataFrame, s: PlantScenario, seed: int) -> pd.DataFrame:
-    out = df.copy()
+    scenario_df = df.copy()
     rng = np.random.default_rng(seed)
 
-    baseline = out["delta_paw_baseline"].to_numpy(dtype=float)
-    target = out["delta_paw_target"].to_numpy(dtype=float)
-    open_ms = out["open_time_ms"].to_numpy(dtype=float)
+    baseline = scenario_df["delta_paw_baseline"].to_numpy(dtype=float)
+    target = scenario_df["delta_paw_target"].to_numpy(dtype=float)
+    open_ms = scenario_df["open_time_ms"].to_numpy(dtype=float)
 
     # Requested control benefit from adaptive strategy.
     requested_reduction = np.maximum(0.0, baseline - target)
@@ -81,34 +81,34 @@ def _apply_plant_scenario(df: pd.DataFrame, s: PlantScenario, seed: int) -> pd.D
     sev = np.clip((baseline - 5.0) / 5.0, 0.0, 1.5)
     coupling_penalty = (1.0 - effectiveness) * 0.25 * sev
 
-    sensor_noise = rng.normal(0.0, s.sensor_noise_sigma, size=len(out))
+    sensor_noise = rng.normal(0.0, s.sensor_noise_sigma, size=len(scenario_df))
 
     dpaw_plant = np.maximum(0.0, baseline - achieved_reduction + coupling_penalty + sensor_noise)
 
-    tf = out["tf"].to_numpy(dtype=float)
-    dpl_base = out["delta_pl_baseline"].to_numpy(dtype=float)
+    tf = scenario_df["tf"].to_numpy(dtype=float)
+    dpl_base = scenario_df["delta_pl_baseline"].to_numpy(dtype=float)
     dpl_plant = np.where(
         np.isfinite(tf) & (tf > 0.0),
         dpaw_plant * tf,
         dpl_base * (dpaw_plant / np.maximum(1e-9, baseline)),
     )
 
-    out["scenario"] = s.name
-    out["delta_paw_plant"] = dpaw_plant
-    out["delta_pl_plant"] = np.maximum(0.0, dpl_plant)
-    out["pass_dpaw_le_5_plant"] = (out["delta_paw_plant"] <= 5.0).astype(int)
-    out["actuator_tau_ms"] = s.actuator_tau_ms
-    out["command_deadtime_ms"] = s.command_deadtime_ms
-    out["control_latency_ms"] = s.control_latency_ms
-    out["sensor_noise_sigma"] = s.sensor_noise_sigma
+    scenario_df["scenario"] = s.name
+    scenario_df["delta_paw_plant"] = dpaw_plant
+    scenario_df["delta_pl_plant"] = np.maximum(0.0, dpl_plant)
+    scenario_df["pass_dpaw_le_5_plant"] = (scenario_df["delta_paw_plant"] <= 5.0).astype(int)
+    scenario_df["actuator_tau_ms"] = s.actuator_tau_ms
+    scenario_df["command_deadtime_ms"] = s.command_deadtime_ms
+    scenario_df["control_latency_ms"] = s.control_latency_ms
+    scenario_df["sensor_noise_sigma"] = s.sensor_noise_sigma
 
-    return out
+    return scenario_df
 
 
 def _scenario_stats(stress_df: pd.DataFrame) -> pd.DataFrame:
-    rows = []
+    scenario_rows = []
     for name, g in stress_df.groupby("scenario", sort=False):
-        rows.append(
+        scenario_rows.append(
             {
                 "scenario": name,
                 "n_breaths": int(len(g)),
@@ -117,13 +117,13 @@ def _scenario_stats(stress_df: pd.DataFrame) -> pd.DataFrame:
                 "pass_rate_le_5": float(np.nanmean(g["pass_dpaw_le_5_plant"])),
             }
         )
-    return pd.DataFrame(rows)
+    return pd.DataFrame(scenario_rows)
 
 
 def _patient_stats(stress_df: pd.DataFrame) -> pd.DataFrame:
-    rows = []
+    patient_rows = []
     for (scenario, pid), g in stress_df.groupby(["scenario", "patient_id"], sort=False):
-        rows.append(
+        patient_rows.append(
             {
                 "scenario": scenario,
                 "patient_id": str(pid),
@@ -133,7 +133,7 @@ def _patient_stats(stress_df: pd.DataFrame) -> pd.DataFrame:
                 "pass_rate_le_5": float(np.nanmean(g["pass_dpaw_le_5_plant"])),
             }
         )
-    return pd.DataFrame(rows)
+    return pd.DataFrame(patient_rows)
 
 
 def main() -> int:
@@ -175,11 +175,11 @@ def main() -> int:
         df = df.copy()
         df["delta_paw_target"] = df[target_col].astype(float)
 
-    frames = []
+    scenario_frames = []
     for i, s in enumerate(_scenarios()):
-        frames.append(_apply_plant_scenario(df, s, seed=200 + i))
+        scenario_frames.append(_apply_plant_scenario(df, s, seed=200 + i))
 
-    stress_df = pd.concat(frames, ignore_index=True)
+    stress_df = pd.concat(scenario_frames, ignore_index=True)
     scenario_df = _scenario_stats(stress_df)
     patient_df = _patient_stats(stress_df)
 

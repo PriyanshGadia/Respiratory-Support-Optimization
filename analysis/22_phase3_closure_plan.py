@@ -122,7 +122,7 @@ def main() -> int:
     gate = _read_json(IN_GATE)
     blockers = gate.get("hardware_prototyping_gate", {}).get("blockers", [])
 
-    rows = []
+    closure_rows = []
     for b in blockers:
         base_row = tracker[tracker["blocker"] == b]
         required_evidence = ""
@@ -151,7 +151,7 @@ def main() -> int:
                 estimated_cost_usd = 0.0
 
         m = _pkg_meta(b)
-        rows.append(
+        closure_rows.append(
             {
                 "blocker": b,
                 "priority": int(m["priority"]),
@@ -172,24 +172,24 @@ def main() -> int:
             }
         )
 
-    plan = pd.DataFrame(rows).sort_values(["priority", "workstream", "blocker"], ascending=[True, True, True])
-    plan.to_csv(OUT_CSV, index=False)
+    closure_plan_df = pd.DataFrame(closure_rows).sort_values(["priority", "workstream", "blocker"], ascending=[True, True, True])
+    closure_plan_df.to_csv(OUT_CSV, index=False)
 
     workstream_rollup = (
-        plan.groupby(["priority", "workstream"], as_index=False)
+        closure_plan_df.groupby(["priority", "workstream"], as_index=False)
         .agg(n_blockers=("blocker", "count"), estimated_cost_usd=("estimated_cost_usd", "sum"))
         .sort_values(["priority", "workstream"])
     )
 
-    total_cost = float(plan["estimated_cost_usd"].sum()) if len(plan) else 0.0
-    assigned_owners = int((plan["owner"].apply(_clean_text) != "").sum()) if len(plan) else 0
-    with_dates = int((plan["target_date"].apply(_clean_text) != "").sum()) if len(plan) else 0
+    total_cost = float(closure_plan_df["estimated_cost_usd"].sum()) if len(closure_plan_df) else 0.0
+    assigned_owners = int((closure_plan_df["owner"].apply(_clean_text) != "").sum()) if len(closure_plan_df) else 0
+    with_dates = int((closure_plan_df["target_date"].apply(_clean_text) != "").sum()) if len(closure_plan_df) else 0
 
-    out = {
+    closure_summary = {
         "version": "1.0",
         "generated_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "hardware_gate_pass": bool(gate.get("hardware_prototyping_gate", {}).get("pass", False)),
-        "n_blockers": int(len(plan)),
+        "n_blockers": int(len(closure_plan_df)),
         "estimated_low_cost_budget_usd": round(total_cost, 2),
         "n_assigned_owners": assigned_owners,
         "n_target_dates_set": with_dates,
@@ -202,27 +202,27 @@ def main() -> int:
     }
 
     with open(OUT_JSON, "w", encoding="utf-8") as fh:
-        json.dump(out, fh, indent=2)
+        json.dump(closure_summary, fh, indent=2)
 
     md_lines = [
         "# Phase 3 Hardware Gate Closure Plan",
         "",
-        f"- Generated: {out['generated_utc']}",
-        f"- Hardware gate pass: {out['hardware_gate_pass']}",
-        f"- Open blockers: {out['n_blockers']}",
-        f"- Estimated low-cost budget: ${out['estimated_low_cost_budget_usd']:.2f}",
-        f"- Assigned owners: {out['n_assigned_owners']}/{out['n_blockers']}",
-        f"- Target dates set: {out['n_target_dates_set']}/{out['n_blockers']}",
+        f"- Generated: {closure_summary['generated_utc']}",
+        f"- Hardware gate pass: {closure_summary['hardware_gate_pass']}",
+        f"- Open blockers: {closure_summary['n_blockers']}",
+        f"- Estimated low-cost budget: ${closure_summary['estimated_low_cost_budget_usd']:.2f}",
+        f"- Assigned owners: {closure_summary['n_assigned_owners']}/{closure_summary['n_blockers']}",
+        f"- Target dates set: {closure_summary['n_target_dates_set']}/{closure_summary['n_blockers']}",
         "",
         "## Workstream Rollup",
     ]
-    for r in out["workstream_rollup"]:
+    for r in closure_summary["workstream_rollup"]:
         md_lines.append(
             f"- P{r['priority']} | {r['workstream']} | blockers: {r['n_blockers']} | estimated cost: ${float(r['estimated_cost_usd']):.2f}"
         )
 
     md_lines.extend(["", "## Priority Execution Order"])
-    for _, r in plan.iterrows():
+    for _, r in closure_plan_df.iterrows():
         md_lines.append(
             f"- P{int(r['priority'])} | {r['workstream']} | {r['blocker']} | owner-role: {r['suggested_owner_role']} | est cost: ${float(r['estimated_cost_usd']):.2f}"
         )
