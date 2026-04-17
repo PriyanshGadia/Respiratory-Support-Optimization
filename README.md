@@ -5,9 +5,9 @@
 >
 > **Why this format:** I wanted anyone opening the repo to immediately see what changed, what still blocks us, and where the evidence lives.
 
-**Project Version:** 3.1  
-**Status:** Active — Phase 1 complete; Phase 2 findings generated; Phase 3 redesign in progress (not prototype-ready)  
-**Date:** March 19, 2026
+**Project Version:** 3.2  
+**Status:** Active — Phase 1 complete; Phase 2 analysis package complete; Phase 3 redesign in progress (not prototype-ready)  
+**Date:** April 18, 2026
 
 ---
 
@@ -30,7 +30,7 @@ We built this as a practical bridge between clinical physiology, data science, a
 | Phase | Domain | Objective | Status |
 |---|---|---|---|
 | **Phase 1** | Biomedical / Clinical | Establish the medical problem statement grounded in literature | **Complete** |
-| **Phase 2** | Data Science / ML / Biomechanics | Characterise transients, build Pes-grounded ML detector, validate externally | In preparation |
+| **Phase 2** | Data Science / ML / Biomechanics | Characterise transients, build Pes-grounded ML detector, validate externally | **Complete (analysis package generated)** |
 | **Phase 3** | Mechanical Engineering | Redesign and safety-gated computational validation strategy | Active redesign (see docs/04_PHASE3_MECHANICAL_DESIGN.md) |
 
 *Phase 2 may independently yield a publishable benchmark: the first PVA detection model trained and validated against Pes as physiological ground truth.*
@@ -58,8 +58,8 @@ REBOOT/
 │                                       no confirmed mode — retained for reference only;
 │                                       not used in primary analysis)
 │
-├── analysis/                        ← Phase 2 Python scripts (to be implemented)
-└── figures/                         ← Phase 2 outputs (to be generated)
+├── analysis/                        ← Phase 2 and Phase 3 Python pipelines (implemented)
+└── figures/                         ← Generated report figures and exported artifacts
 ```
 
 ---
@@ -69,29 +69,21 @@ REBOOT/
 | Dataset | N | Sampling | Key Signals | Role |
 |---|---|---|---|---|
 | CCVW-ICU (China) | 7 | **200 Hz** | Pao, Flow, **Pes** (Baydur-validated), confirmed PSV | **Primary development** |
-| Puritan Bennett (UC Davis) | >100 | 50 Hz | Pao, Flow | External validation — *awaited* |
-| Simulated PVI Data | 1,405 runs | TBD | Pao, Flow, labelled ground truth | Algorithm pre-training — *awaited* |
+| Puritan Bennett (UC Davis) | >100 | 50 Hz | Pao, Flow | External shift and controller-replay validation |
+| Simulated PVI Data | 1,405 runs | Synthetic trajectories (protocol-driven) | Pao, Flow, labelled ground truth | Model stress testing and transfer benchmarking |
 | MIMIC-IV Temporal | 50,920 | Hourly aggregate | Clinical variables, ventilation settings | Population context only |
 | University of Canterbury | 80 | 100 Hz | Pao, Flow | Not used in primary analysis |
 
 ---
 
-## Phase 2 Roadmap (Next Steps)
+## Upload and Handoff Checklist
 
-Before writing any analysis code, complete the following:
+This repository is ready for upload with the current evidence state.
 
-1. **Procure the key literature papers** listed in Section 12 of the problem statement — especially:
-   - Hotchkiss et al., 2001 (AJRCCM) — flow-cycling instability theory
-   - Hartford et al., 2000 (Anesthesiology) — Pes frequency response validation
-   - Rietveld et al., 2025 — AI in respiratory monitoring
-   - Jiang et al., 2025 — ML for PVA systematic review
-   - Akoumianaki et al., 2024 — active expiration and PVI
-
-2. **Do an initial visual exploration of the CCVW-ICU waveforms** — load P01's Pao, Flow, and Pes and plot 10 consecutive breaths. Identify by eye where flow termination occurs, what happens to Pao and Pes at that moment. This is not analysis; it is orientation.
-
-3. **Set up the Phase 2 analysis protocol document** (`docs/02_ANALYSIS_PROTOCOL.md`) — following the same pre-specification discipline as before: lock all analytical thresholds, algorithms, and statistical tests before running any analysis.
-
-4. **Await the two missing datasets** (Puritan Bennett, Simulated PVI) before finalising external validation design.
+1. Confirm the latest analysis artifacts exist under analysis/logs (readiness packet, gate summary, blocker tracker, closure plan).
+2. Keep docs aligned with the current gate state: redesign active, hardware transition blocked pending evidence closure.
+3. Upload the repository root with history preserved so the iterative decision trail remains auditable.
+4. For external review, point readers first to this README, then docs/04_PHASE3_MECHANICAL_DESIGN.md and analysis/logs/phase3_readiness_packet.md.
 
 ---
 
@@ -121,7 +113,7 @@ If you are starting fresh:
 1. **This README** — project overview
 2. **[docs/01_MEDICAL_PROBLEM_STATEMENT.md](docs/01_MEDICAL_PROBLEM_STATEMENT.md)** — the full clinical and scientific rationale (~8,000 words; 45–60 min)
 3. **The key literature papers** listed in Section 12 of the problem statement
-4. **docs/02_ANALYSIS_PROTOCOL.md** — once written, defines all analytical decisions before any code runs
+4. **docs/02_ANALYSIS_PROTOCOL.md** — locked analysis protocol used for reproducible execution
 
 ---
 
