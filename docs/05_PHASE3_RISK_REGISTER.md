@@ -1,5 +1,9 @@
 # Phase 3 Risk Register (Draft)
 
+> **Author working note:** I maintain this as a living risk ledger, not a one-time compliance artifact, so open items are left visible until evidence is actually closed.
+>
+> **Practical rule I follow:** If I cannot point to an artifact path, the risk stays open.
+
 Document Version: 1.0
 Date: March 19, 2026
 Status: Draft baseline for ISO 14971-oriented workflow

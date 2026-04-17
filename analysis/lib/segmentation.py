@@ -43,7 +43,6 @@ def segment_breaths(df: pd.DataFrame, fs: float,
     """
     time = df["time"].values
     flow = df["flow"].values
-    paw  = df["paw"].values if "paw" in df.columns else np.zeros(len(time))
 
     insp_sustain_n = max(1, int(insp_sustain_ms / 1000.0 * fs))
     dt = 1.0 / fs
@@ -56,7 +55,6 @@ def segment_breaths(df: pd.DataFrame, fs: float,
     # -----------------------------------------------------------------------
     n = len(flow)
     insp_phase = flow > eps
-    non_insp   = ~insp_phase
 
     # Find raw rising crossings (non-insp → insp)
     raw_onsets = np.where(np.diff(insp_phase.astype(int)) == 1)[0] + 1
@@ -64,13 +62,21 @@ def segment_breaths(df: pd.DataFrame, fs: float,
     confirmed_onsets = []
     for onset_idx in raw_onsets:
         end_check = min(onset_idx + insp_sustain_n, n)
+        # I keep this sustain check to reject one-sample spikes that otherwise
+        # look like real inspiratory starts.
         if np.all(insp_phase[onset_idx:end_check]):
             confirmed_onsets.append(onset_idx)
 
     if len(confirmed_onsets) < 2:
         log.warning("Fewer than 2 confirmed inspiratory onsets; trying fallback.")
-        return _fallback_segmentation(df, fs, insp_dur_min_s, insp_dur_max_s,
-                                      flow_peak_min, paw_slope_thresh)
+        return _fallback_segmentation(
+            df,
+            fs,
+            insp_dur_min_s,
+            insp_dur_max_s,
+            flow_peak_min,
+            paw_slope_thresh,
+        )
 
     for i, onset in enumerate(confirmed_onsets):
         next_onset = confirmed_onsets[i + 1] if i + 1 < len(confirmed_onsets) else n - 1
@@ -125,11 +131,11 @@ def _fallback_segmentation(df, fs, insp_dur_min_s, insp_dur_max_s,
     """
     time = df["time"].values
     flow = df["flow"].values
-    paw  = df["paw"].values if "paw" in df.columns else np.zeros(len(time))
+    paw_signal = df["paw"].values if "paw" in df.columns else np.zeros(len(time))
     dt = 1.0 / fs
 
     # Candidate onset: dPaw/dt > threshold AND flow >= 0
-    dpaw = np.gradient(paw, dt)
+    dpaw = np.gradient(paw_signal, dt)
     candidate = (dpaw > paw_slope_thresh) & (flow >= 0)
     raw_onsets = np.where(np.diff(candidate.astype(int)) == 1)[0] + 1
 

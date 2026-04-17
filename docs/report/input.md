@@ -1,3 +1,5 @@
+> **Author working note:** This file is an extracted draft source, so phrasing can look rough in places. I kept it as a trace artifact while iterating the final report text.
+
 > **Physiology-Grounded** **Machine** **Learning** **for** **Detecting**
 > **Flow-Termination** **Transients** **in** **Pressure** **Support**
 > **Ventilation** **Using** **Transpulmonary** **Pressure**

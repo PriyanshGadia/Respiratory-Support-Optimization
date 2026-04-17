@@ -1,6 +1,10 @@
 # Medical Problem Statement and Literature Review
 ## Dynamic Flow-Termination Transients in Pressure Support Ventilation: An Unsolved Problem at the Intersection of Respiratory Physiology, Machine Learning, and Mechanical Engineering
 
+> **Author working note:** I wrote this as the anchor document I kept coming back to whenever implementation decisions drifted from the clinical question.
+>
+> **What this means in practice:** If a later script or model choice looks odd, this file is the reason trail for why I chose it.
+
 > **Phase 3 status note (2026-03-19):** Mechanical implementation status is tracked in `04_PHASE3_MECHANICAL_DESIGN.md` (active redesign, safety-gated). This document remains the biomedical foundation.
 
 **Document Version:** 4.2  

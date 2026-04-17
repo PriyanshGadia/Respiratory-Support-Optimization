@@ -10,7 +10,8 @@
 # Run: python REBOOT/analysis/04_global_pipeline.py
 # =============================================================================
 
-import sys, os
+import os
+import sys
 sys.path.insert(0, os.path.dirname(__file__))
 
 import json
@@ -65,9 +66,9 @@ def resolve_ets(metadata: dict) -> tuple:
     """
     for key in ["ets_breath", "ets_session", "ets_patient", "ets"]:
         if key in metadata and metadata[key] is not None:
-            val = metadata[key]
-            if np.isfinite(val) and 0.05 < val < 1.0:
-                return float(val), False
+                        ets_candidate = metadata[key]
+                        if np.isfinite(ets_candidate) and 0.05 < ets_candidate < 1.0:
+                                return float(ets_candidate), False
     return C.ETS_DEFAULT, True
 
 
@@ -96,9 +97,9 @@ def process_generic_waveform(df: pd.DataFrame,
     has_pes = ("pes" in df.columns) and (not df["pes"].isna().all())
     required = ["time", "flow", "paw"] + (["pes"] if has_pes else [])
 
-    qc_res = file_qc(df, fs, required_channels=required, fs_tol=C.FS_TOLERANCE * 2)
-    if not qc_res["pass"]:
-        log.debug("Skipping %s (QC fail): %s", source_id, qc_res["reasons"])
+    qc_check = file_qc(df, fs, required_channels=required, fs_tol=C.FS_TOLERANCE * 2)
+    if not qc_check["pass"]:
+        log.debug("Skipping %s (QC fail): %s", source_id, qc_check["reasons"])
         return []
 
     # Preprocessing
@@ -127,7 +128,7 @@ def process_generic_waveform(df: pd.DataFrame,
         if breath["exclude"]:
             continue
 
-        event_dict = process_breath(
+        breath_event = process_breath(
             breath_info=breath,
             df=df_clean,
             fs=fs,
@@ -142,27 +143,31 @@ def process_generic_waveform(df: pd.DataFrame,
             event_peak_ms=C.EVENT_PEAK_MAX_MS,
         )
 
-        if event_dict.get("cycle_undefined") or event_dict.get("incomplete_window"):
+        if breath_event.get("cycle_undefined") or breath_event.get("incomplete_window"):
             continue
 
         # Attach metadata
         for key in ["ps", "peep", "fio2", "ets"]:
             if key in metadata:
-                event_dict[key] = metadata[key]
+                breath_event[key] = metadata[key]
 
-        event_dict["patient_id"] = source_id
-        event_dict["source"]     = source_tag
+        breath_event["patient_id"] = source_id
+        breath_event["source"] = source_tag
 
-        t_cycle = event_dict["t_cycle"]
+        t_cycle = breath_event["t_cycle"]
         time = df_clean["time"].values
         full_mask = (time >= t_cycle - C.PRE_WIN_MS / 1000.0) & \
                     (time <= t_cycle + C.POST_WIN_MS / 1000.0)
-        full_win_df = df_clean[full_mask]
+        waveform_window_df = df_clean[full_mask]
 
         include_clinical = any(k in metadata for k in ["ps", "peep", "fio2"])
-        row = build_feature_row(event_dict, full_win_df, fs,
-                                include_clinical=include_clinical)
-        feature_rows.append(row)
+        feature_row = build_feature_row(
+            breath_event,
+            waveform_window_df,
+            fs,
+            include_clinical=include_clinical,
+        )
+        feature_rows.append(feature_row)
 
     return feature_rows
 
@@ -203,24 +208,24 @@ def process_simulation_runs(sim_clean: dict,
             "peep": float(st.get("PEEP", np.nan))    if st.get("PEEP")    else np.nan,
         }
 
-        rows = process_generic_waveform(df, metadata, run_id, "simulation")
+        run_feature_rows = process_generic_waveform(df, metadata, run_id, "simulation")
 
         # Attach ground-truth t_cycle from mechanical reference
         # For each detected breath, find matching tem (cycle end time)
-        if len(rows) > 0 and len(mec) > 0:
+        if len(run_feature_rows) > 0 and len(mec) > 0:
             tem_vals = mec[C.SIM_MECH_TEM_COL].values if C.SIM_MECH_TEM_COL in mec.columns else np.array([])
-            for row in rows:
-                tc = row.get("t_cycle", np.nan)
+            for feature_row in run_feature_rows:
+                tc = feature_row.get("t_cycle", np.nan)
                 if np.isfinite(tc) and len(tem_vals) > 0:
                     diffs = np.abs(tem_vals - tc)
                     nearest_idx = int(np.argmin(diffs))
-                    row["t_cycle_gt"] = float(tem_vals[nearest_idx])
-                    row["t_cycle_error_ms"] = float(diffs[nearest_idx] * 1000.0)
+                    feature_row["t_cycle_gt"] = float(tem_vals[nearest_idx])
+                    feature_row["t_cycle_error_ms"] = float(diffs[nearest_idx] * 1000.0)
                 else:
-                    row["t_cycle_gt"]       = np.nan
-                    row["t_cycle_error_ms"] = np.nan
+                    feature_row["t_cycle_gt"] = np.nan
+                    feature_row["t_cycle_error_ms"] = np.nan
 
-        all_rows.extend(rows)
+        all_rows.extend(run_feature_rows)
 
         if (i + 1) % 100 == 0:
             log.info("  Processed %d / %d simulation runs", i + 1, len(run_ids))
@@ -270,7 +275,7 @@ def run_simulation_audit(sim_features: pd.DataFrame,
 
     sim_pretrain_enabled = mismatch_rate <= mismatch_rate_max
 
-    result = {
+    audit_summary = {
         "n_audited":          int(n_audit),
         "mismatch_rate":      round(mismatch_rate, 4),
         "mismatch_ci_95":     [round(ci_lo, 4), round(ci_hi, 4)],
@@ -284,9 +289,9 @@ def run_simulation_audit(sim_features: pd.DataFrame,
 
     audit_path = os.path.join(C.LOGS_DIR, "simulation_audit_results.json")
     with open(audit_path, "w") as fh:
-        json.dump(result, fh, indent=2)
+        json.dump(audit_summary, fh, indent=2)
 
-    return result
+    return audit_summary
 
 
 # ---------------------------------------------------------------------------
@@ -371,16 +376,16 @@ def process_vwd_records(vwd_data, model, feature_cols: list) -> dict:
     n_ok = n_total_breaths = 0
 
     for batch_start in range(0, len(vwd_clean), VWD_BATCH_SIZE):
-        batch = vwd_clean[batch_start: batch_start + VWD_BATCH_SIZE]
+        vwd_batch = vwd_clean[batch_start: batch_start + VWD_BATCH_SIZE]
         batch_rows = []
-        for rec in batch:
-            rows = process_generic_waveform(
-                rec["df"], {},
-                source_id=rec["patient_id"],
+        for record in vwd_batch:
+            record_feature_rows = process_generic_waveform(
+                record["df"], {},
+                source_id=record["patient_id"],
                 source_tag="vwd",
             )
-            batch_rows.extend(rows)
-            if rows:
+            batch_rows.extend(record_feature_rows)
+            if record_feature_rows:
                 n_ok += 1
 
         if not batch_rows:
@@ -548,7 +553,8 @@ if __name__ == "__main__":
     log.info("  Global model on simulation (train) metrics: MAE=%.4f, R²=%.4f",
              sim_train_metrics.get("mae", np.nan), sim_train_metrics.get("r2", np.nan))
 
-    # --- Step 8: Domain shift on VWD ---
+    # I stream this stage in batches so large external files don't force a
+    # full in-memory frame during exploratory replay.
     # --- Step 8: Domain shift on VWD (streaming, memory-efficient) ---
     # process_vwd_records now handles loading, scoring each batch, and writing to CSV.
     # Returns a score statistics dict rather than a full in-memory DataFrame.

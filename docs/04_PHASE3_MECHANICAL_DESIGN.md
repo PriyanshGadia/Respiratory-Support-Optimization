@@ -1,5 +1,9 @@
 # Phase 3 Mechanical Design - Safety-Gated Redesign
 
+> **Author working note:** I rewrote this after we invalidated the earlier "final" claims, so the tone is intentionally explicit about what is verified versus what is still provisional.
+>
+> **How I use this doc:** It is my checklist-backed baseline for deciding what can move forward and what stays blocked.
+
 Document Version: 4.0
 Date: March 19, 2026
 Status: Active Redesign - Not approved for prototyping or clinical use

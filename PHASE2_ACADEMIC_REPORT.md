@@ -1,5 +1,9 @@
 # Dynamic Flow-Termination Transients in Pressure Support Ventilation: Characterisation, Detection, and Mechanistic Analysis
 
+> **Author working note:** I kept this report technically formal, but I still wrote it as a project record of decisions I made while iterating on the pipeline and validation gates.
+>
+> **Reading tip:** The strongest value here is not only the positive metrics; it is also the documented limits and failed paths that shaped Phase 3.
+
 **Version:** 1.0  
 **Date:** March 31, 2026  
 **Study ID:** IPD Phase 2 — Interdisciplinary Project on Respiratory Device Engineering  

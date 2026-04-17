@@ -276,8 +276,8 @@ def train_xgb(X_train: np.ndarray, y_train: np.ndarray,
     n_patients = len(np.unique(groups_train))
     n_folds = min(cv_folds, n_patients)
 
-    # Runtime-safe deterministic fit: use first value of each configured hyperparameter.
-    # This keeps behavior stable across folds and avoids long GridSearch runs.
+    # I intentionally pin this to the first configured values so fold runtime
+    # stays predictable during repeated LOPO experiments.
     fast_grid = _prefix_param_grid(_first_param_combo(param_grid))
     pipeline = _build_xgb_pipeline(task, seed=seed)
     pipeline.set_params(**{k: v[0] for k, v in fast_grid.items()})
@@ -352,7 +352,7 @@ def compute_permutation_importance(model: Pipeline,
     """
     Model-agnostic feature importance using permutation MAE degradation.
     """
-    result = permutation_importance(
+    importance_result = permutation_importance(
         model,
         X,
         y,
@@ -363,8 +363,8 @@ def compute_permutation_importance(model: Pipeline,
     )
     df = pd.DataFrame({
         "feature": feature_cols,
-        "importance_mean": result.importances_mean,
-        "importance_std": result.importances_std,
+        "importance_mean": importance_result.importances_mean,
+        "importance_std": importance_result.importances_std,
     })
     return df.sort_values("importance_mean", ascending=False).reset_index(drop=True)
 

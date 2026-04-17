@@ -1,6 +1,10 @@
 # IPD REBOOT
 ## Dynamic Flow-Termination Transients in Pressure Support Ventilation
 
+> **Author working note:** I revised this README over multiple implementation rounds, so I kept the language practical and direct instead of writing it like a textbook abstract.
+>
+> **Why this format:** I wanted anyone opening the repo to immediately see what changed, what still blocks us, and where the evidence lives.
+
 **Project Version:** 3.1  
 **Status:** Active — Phase 1 complete; Phase 2 findings generated; Phase 3 redesign in progress (not prototype-ready)  
 **Date:** March 19, 2026

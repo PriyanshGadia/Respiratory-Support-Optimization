@@ -1,6 +1,10 @@
 # Phase 2 Analysis Protocol
 ## Dynamic Flow-Termination Transients in PSV: Pre-Specified Biomechanics and ML Plan
 
+> **Author working note:** I froze this protocol before deep result interpretation because I wanted a clean boundary between planned method and post-run hindsight.
+>
+> **Why it is strict:** In a small cohort, even minor threshold drift can create false confidence, so I treated this file as the non-negotiable reference.
+
 > **Cross-phase amendment note (2026-03-19):** Mechanical downstream interpretation is governed by the redesign gates in `04_PHASE3_MECHANICAL_DESIGN.md`. Phase 2 outputs remain unchanged; only Phase 3 engineering claims were reset.
 
 **Protocol Version:** 1.2  

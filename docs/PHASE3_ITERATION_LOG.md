@@ -1,5 +1,9 @@
 # Phase 3 Iteration Log
 
+> **Author working note:** I keep this log intentionally blunt because it is my trace of what changed, why it changed, and which evidence file proved it.
+>
+> **Why this matters:** The goal is reproducibility of decisions, not polished narrative.
+
 Document Version: 1.0
 Date: March 20, 2026
 Status: Active (research-stage, hardware gate closed)

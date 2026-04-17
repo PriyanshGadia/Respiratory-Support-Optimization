@@ -1,5 +1,9 @@
 # Independent Review Checklist
 
+> **Author working note:** I prepared this checklist to force uncomfortable review questions early, before we start treating simulation results like hardware truth.
+>
+> **How I expect it used:** Reviewers should challenge assumptions directly and record unresolved issues explicitly.
+
 Status: Draft template
 Date:
 Owner:

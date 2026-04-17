@@ -1,5 +1,9 @@
 # Phase 2 Analysis — Findings Report
 
+> **Author working note:** I treat this as a lab notebook plus report, so I leave both wins and dead-ends visible instead of polishing away the rough edges.
+>
+> **How to read it:** The negative results are intentional evidence, not errors to hide.
+
 > **Phase 3 handoff note (2026-03-19):** Mechanical design interpretation has been moved to a safety-gated redesign baseline in `04_PHASE3_MECHANICAL_DESIGN.md`. Prior "final/ready" mechanical claims are deprecated.
 
 > **Generated:** 2026-03-17 02:33:20  

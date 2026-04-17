@@ -14,7 +14,8 @@
 # Run: python REBOOT/analysis/03_local_pipeline.py
 # =============================================================================
 
-import sys, os
+import os
+import sys
 sys.path.insert(0, os.path.dirname(__file__))
 
 import json
@@ -111,8 +112,9 @@ def process_ccvw_patient(pid: str, df: pd.DataFrame, fs: float = None):
             n_excluded += 1
             continue
 
-        # Slip per-breath clinical metadata onto df for process_breath
-        event_dict = process_breath(
+        # I keep event extraction isolated per breath so exclusion reasons stay
+        # traceable when we audit disagreements later.
+        breath_event = process_breath(
             breath_info=breath,
             df=df,
             fs=fs,
@@ -127,10 +129,10 @@ def process_ccvw_patient(pid: str, df: pd.DataFrame, fs: float = None):
             event_peak_ms=C.EVENT_PEAK_MAX_MS,
         )
 
-        if event_dict.get("cycle_undefined"):
+        if breath_event.get("cycle_undefined"):
             n_cycle_undef += 1
             continue
-        if event_dict.get("incomplete_window"):
+        if breath_event.get("incomplete_window"):
             n_incomplete += 1
             continue
 
@@ -146,12 +148,12 @@ def process_ccvw_patient(pid: str, df: pd.DataFrame, fs: float = None):
             flatline_ms=C.FLATLINE_BREATH_MS,
             pre_ms=C.PRE_WIN_MS,
             post_ms=C.POST_WIN_MS,
-            t_cycle=event_dict.get("t_cycle"),
+            t_cycle=breath_event.get("t_cycle"),
             apply_hampel=False,
         )
 
-        # Primary analysis excludes any breath with required-channel quality flag
-        # (Protocol §4.3: Pes is a required channel for CCVW-ICU)
+        # I exclude on any required-channel quality flag because in small
+        # cohorts, one bad window can distort patient-level conclusions.
         low_flow = bool(flags.get("low_quality_flow"))
         low_paw = bool(flags.get("low_quality_paw"))
         low_pes = bool(flags.get("low_quality_pes"))
@@ -166,21 +168,30 @@ def process_ccvw_patient(pid: str, df: pd.DataFrame, fs: float = None):
             continue
 
         # Build feature row (use full [-pre, +post] window)
-        t_cycle = event_dict["t_cycle"]
+        t_cycle = breath_event["t_cycle"]
         time = df["time"].values
         full_mask = (time >= t_cycle - C.PRE_WIN_MS / 1000.0) & \
                     (time <= t_cycle + C.POST_WIN_MS / 1000.0)
-        full_win_df = df[full_mask]
+        waveform_window_df = df[full_mask]
 
         # Attach clinical metadata to event dict
-        for col in ["ps", "peep", "fio2", "ets"]:
-            if col in df.columns:
-                event_dict[col] = float(df[col].iloc[0]) if not pd.isna(df[col].iloc[0]) else np.nan
+        for clinical_key in ["ps", "peep", "fio2", "ets"]:
+            if clinical_key in df.columns:
+                breath_event[clinical_key] = (
+                    float(df[clinical_key].iloc[0])
+                    if not pd.isna(df[clinical_key].iloc[0])
+                    else np.nan
+                )
 
-        row = build_feature_row(event_dict, full_win_df, fs, include_clinical=True)
-        row["patient_id"] = pid
-        row["low_quality_pes"] = flags.get("low_quality_pes", False)
-        feature_rows.append(row)
+        feature_row = build_feature_row(
+            breath_event,
+            waveform_window_df,
+            fs,
+            include_clinical=True,
+        )
+        feature_row["patient_id"] = pid
+        feature_row["low_quality_pes"] = flags.get("low_quality_pes", False)
+        feature_rows.append(feature_row)
 
     n_segmented = len(breaths)
     n_quality_excluded = n_low_quality_flow + n_low_quality_paw + n_low_quality_pes
@@ -213,8 +224,8 @@ def build_features_table(patient_dict: dict, fs: float = None,
     all_rows = []
     stats_rows = []
     for pid, df in sorted(patient_dict.items()):
-        rows, stats = process_ccvw_patient(pid, df, fs)
-        all_rows.extend(rows)
+        patient_rows, stats = process_ccvw_patient(pid, df, fs)
+        all_rows.extend(patient_rows)
         stats_rows.append(stats)
 
     if not all_rows:
@@ -233,10 +244,10 @@ def build_features_table(patient_dict: dict, fs: float = None,
 
     # Log Delta PL distribution
     if "delta_pl_max" in features_df.columns:
-        vals = features_df["delta_pl_max"].dropna()
-        if len(vals):
+        delta_pl_values = features_df["delta_pl_max"].dropna()
+        if len(delta_pl_values):
             log.info("  delta_pl_max: mean=%.3f ± %.3f cmH2O (n=%d)",
-                     vals.mean(), vals.std(), len(vals))
+                     delta_pl_values.mean(), delta_pl_values.std(), len(delta_pl_values))
 
     stats_df = pd.DataFrame(stats_rows)
     if not stats_df.empty:
@@ -553,7 +564,7 @@ def run_patient_specific_fine_tuning_demo(train_features: pd.DataFrame,
         seed=C.RANDOM_SEED,
     )
 
-    rows = []
+    adaptation_rows = []
     for pid, grp in test_features.groupby("patient_id"):
         grp = grp.reset_index(drop=True)
         n = len(grp)
@@ -566,11 +577,11 @@ def run_patient_specific_fine_tuning_demo(train_features: pd.DataFrame,
         if k <= 0:
             continue
 
-        adapt = grp.iloc[:k]
+        adaptation_window_df = grp.iloc[:k]
         eval_df = grp.iloc[k:]
 
-        X_adapt = adapt[feature_cols].values.astype(np.float64)
-        y_adapt = adapt["y_regression"].values.astype(np.float64)
+        X_adapt = adaptation_window_df[feature_cols].values.astype(np.float64)
+        y_adapt = adaptation_window_df["y_regression"].values.astype(np.float64)
         X_eval = eval_df[feature_cols].values.astype(np.float64)
         y_eval = eval_df["y_regression"].values.astype(np.float64)
 
@@ -581,7 +592,7 @@ def run_patient_specific_fine_tuning_demo(train_features: pd.DataFrame,
 
         m_base = regression_metrics(y_eval, pred_eval)
         m_tuned = regression_metrics(y_eval, pred_eval_tuned)
-        rows.append({
+        adaptation_rows.append({
             "patient_id": pid,
             "n_total": int(n),
             "n_adapt": int(k),
@@ -596,21 +607,24 @@ def run_patient_specific_fine_tuning_demo(train_features: pd.DataFrame,
             "r2_after": float(m_tuned.get("r2", np.nan)),
         })
 
-    df = pd.DataFrame(rows)
-    df.to_csv(os.path.join(C.LOGS_DIR, "patient_specific_fine_tuning.csv"), index=False)
+    adaptation_df = pd.DataFrame(adaptation_rows)
+    adaptation_df.to_csv(
+        os.path.join(C.LOGS_DIR, "patient_specific_fine_tuning.csv"),
+        index=False,
+    )
 
-    if df.empty:
-        return df, {}
+    if adaptation_df.empty:
+        return adaptation_df, {}
 
     summary = {
-        "n_patients_evaluated": int(df["patient_id"].nunique()),
-        "mean_mae_before": float(df["mae_before"].mean()),
-        "mean_mae_after": float(df["mae_after"].mean()),
-        "mean_mae_gain": float(df["mae_gain"].mean()),
-        "median_mae_gain": float(df["mae_gain"].median()),
-        "patients_improved": int((df["mae_gain"] > 0).sum()),
+        "n_patients_evaluated": int(adaptation_df["patient_id"].nunique()),
+        "mean_mae_before": float(adaptation_df["mae_before"].mean()),
+        "mean_mae_after": float(adaptation_df["mae_after"].mean()),
+        "mean_mae_gain": float(adaptation_df["mae_gain"].mean()),
+        "median_mae_gain": float(adaptation_df["mae_gain"].median()),
+        "patients_improved": int((adaptation_df["mae_gain"] > 0).sum()),
     }
-    return df, summary
+    return adaptation_df, summary
 
 
 def train_and_test_local(train_features: pd.DataFrame,

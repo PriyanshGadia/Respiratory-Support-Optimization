@@ -1,5 +1,9 @@
 # ISO 14971 Risk Management File (Research-Stage Draft)
 
+> **Author working note:** This is a live template I update as closure evidence matures; empty sections mean the evidence trail is still incomplete.
+>
+> **Current use:** Track research-stage risk logic in a format we can harden later for formal review.
+
 Status: Draft template
 Date:
 Owner:
