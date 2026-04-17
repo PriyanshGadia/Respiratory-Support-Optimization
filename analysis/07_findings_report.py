@@ -78,7 +78,7 @@ def _md_table(df: pd.DataFrame, float_fmt: str = ".3f") -> str:
         return "_No data available._\n"
     header = "| " + " | ".join(str(c) for c in df.columns) + " |"
     sep    = "|" + "|".join(["---" for _ in df.columns]) + "|"
-    rows   = []
+    table_rows = []
     for _, r in df.iterrows():
         cells = []
         for v in r:
@@ -86,8 +86,8 @@ def _md_table(df: pd.DataFrame, float_fmt: str = ".3f") -> str:
                 cells.append(format(float(v), float_fmt))
             except (TypeError, ValueError):
                 cells.append(str(v))
-        rows.append("| " + " | ".join(cells) + " |")
-    return "\n".join([header, sep] + rows) + "\n"
+        table_rows.append("| " + " | ".join(cells) + " |")
+    return "\n".join([header, sep] + table_rows) + "\n"
 
 
 def _rel_doc_path(path: str) -> str:
@@ -503,15 +503,15 @@ def sec_local_model(lines: list):
 
     unc = summary.get("uncertainty", {}) if summary else {}
     if isinstance(unc, dict) and len(unc) > 0:
-        rows = []
+        uncertainty_rows = []
         for model_name, vals in unc.items():
-            rows.append({
+            uncertainty_rows.append({
                 "model": model_name,
                 "mean_pred_std": vals.get("mean_pred_std", np.nan),
                 "median_pred_std": vals.get("median_pred_std", np.nan),
                 "pi95_coverage": vals.get("pi95_coverage", np.nan),
             })
-        unc_df = pd.DataFrame(rows)
+        unc_df = pd.DataFrame(uncertainty_rows)
         lines += [
             "### Uncertainty Comparison (Probabilistic Models)",
             "",
@@ -630,9 +630,9 @@ def sec_global_model(lines: list):
     if sim_sens:
         ext = sim_sens.get("global_extremes", {})
         if ext:
-            rows = []
+            extreme_rows = []
             for var, d in ext.items():
-                rows.append({
+                extreme_rows.append({
                     "variable": var,
                     "p5": d.get("p5", np.nan),
                     "p95": d.get("p95", np.nan),
@@ -640,7 +640,7 @@ def sec_global_model(lines: list):
                     "min": d.get("min", np.nan),
                     "max": d.get("max", np.nan),
                 })
-            df_ext = pd.DataFrame(rows)
+            df_ext = pd.DataFrame(extreme_rows)
             lines += [
                 "### Simulation Sensitivity (Parameter-Space Stress Test)",
                 "",

@@ -28,8 +28,8 @@ def _load_json(path: str) -> dict[str, Any]:
     if not os.path.exists(path):
         return {}
     with open(path, "r", encoding="utf-8") as fh:
-        data = json.load(fh)
-    return data if isinstance(data, dict) else {}
+        loaded_json = json.load(fh)
+    return loaded_json if isinstance(loaded_json, dict) else {}
 
 
 def _sha256(path: str) -> str:

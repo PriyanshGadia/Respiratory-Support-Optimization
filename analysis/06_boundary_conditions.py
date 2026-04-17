@@ -141,7 +141,7 @@ def derive_boundary_conditions(df: pd.DataFrame) -> pd.DataFrame:
 
 def per_patient_bc(df: pd.DataFrame) -> pd.DataFrame:
     """Compute key BC statistics per patient."""
-    rows = []
+    patient_rows = []
     target_vars = ["delta_paw_max", "delta_pl_max", "dPaw_dt_max",
                    "dPL_dt_max", "flow_decel_slope", "tf",
                    "f_peak", "insp_dur_s", "exp_dur_s"]
@@ -159,8 +159,8 @@ def per_patient_bc(df: pd.DataFrame) -> pd.DataFrame:
         if "event_positive" in grp.columns:
             ep = grp["event_positive"].dropna()
             row["event_rate"] = float(ep.mean()) if len(ep) > 0 else np.nan
-        rows.append(row)
-    return pd.DataFrame(rows)
+        patient_rows.append(row)
+    return pd.DataFrame(patient_rows)
 
 
 # ---------------------------------------------------------------------------

@@ -16,7 +16,7 @@ from typing import Any
 
 import config as C
 
-OUT = os.path.join(C.LOGS_DIR, "phase3_hardware_evidence_status.json")
+EVIDENCE_STATUS_PATH = os.path.join(C.LOGS_DIR, "phase3_hardware_evidence_status.json")
 
 DEFAULT = {
     "version": "1.0",
@@ -76,18 +76,18 @@ def _merge(base: dict[str, Any], current: dict[str, Any]) -> dict[str, Any]:
 def main() -> int:
     os.makedirs(C.LOGS_DIR, exist_ok=True)
 
-    if os.path.exists(OUT):
-        with open(OUT, "r", encoding="utf-8") as fh:
+    if os.path.exists(EVIDENCE_STATUS_PATH):
+        with open(EVIDENCE_STATUS_PATH, "r", encoding="utf-8") as fh:
             cur = json.load(fh)
     else:
         cur = {}
 
     merged = _merge(DEFAULT, cur if isinstance(cur, dict) else {})
 
-    with open(OUT, "w", encoding="utf-8") as fh:
+    with open(EVIDENCE_STATUS_PATH, "w", encoding="utf-8") as fh:
         json.dump(merged, fh, indent=2)
 
-    print(f"Saved: {OUT}")
+    print(f"Saved: {EVIDENCE_STATUS_PATH}")
     print(f"external_shift_mode={merged['external_validation']['external_shift_mode']}")
     return 0
 

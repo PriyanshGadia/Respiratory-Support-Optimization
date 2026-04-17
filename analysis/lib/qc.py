@@ -198,27 +198,27 @@ def preprocess_signal(df: pd.DataFrame, fs: float,
         arr = df["flow"].values.astype(np.float64)
         finite_mask = np.isfinite(arr)
         if finite_mask.sum() > 10:
-            tmp = arr.copy()
+            interpolated_signal = arr.copy()
             # I interpolate only the missing points before filtering to avoid edge ringing from NaN gaps.
-            tmp[~finite_mask] = np.interp(
+            interpolated_signal[~finite_mask] = np.interp(
                 np.where(~finite_mask)[0],
                 np.where(finite_mask)[0],
                 arr[finite_mask],
             )
-            df["flow"] = lowpass_filter(tmp, flow_lp_hz, fs)
+            df["flow"] = lowpass_filter(interpolated_signal, flow_lp_hz, fs)
 
     for col in ["paw", "pes"]:
         if col in df.columns:
             arr = df[col].values.astype(np.float64)
             finite_mask = np.isfinite(arr)
             if finite_mask.sum() > 10:
-                tmp = arr.copy()
-                tmp[~finite_mask] = np.interp(
+                interpolated_signal = arr.copy()
+                interpolated_signal[~finite_mask] = np.interp(
                     np.where(~finite_mask)[0],
                     np.where(finite_mask)[0],
                     arr[finite_mask],
                 )
-                df[col] = lowpass_filter(tmp, pres_lp_hz, fs)
+                df[col] = lowpass_filter(interpolated_signal, pres_lp_hz, fs)
 
     # Step 3 — Anti-aliasing + resampling (if requested)
     if target_fs is not None and abs(target_fs - fs) / fs > 0.02:

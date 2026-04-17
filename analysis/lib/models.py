@@ -94,18 +94,18 @@ class HierarchicalBayesRegressor:
         return pred
 
     def posterior_summary(self) -> pd.DataFrame:
-        rows = []
+        posterior_rows = []
         for pid in sorted(self.posterior_mean_.keys()):
             mu = self.posterior_mean_[pid]
             sd = float(np.sqrt(max(self.posterior_var_.get(pid, 0.0), 0.0)))
-            rows.append({
+            posterior_rows.append({
                 "patient_id": pid,
                 "posterior_mean": mu,
                 "posterior_sd": sd,
                 "posterior_lo95": mu - 1.96 * sd,
                 "posterior_hi95": mu + 1.96 * sd,
             })
-        return pd.DataFrame(rows)
+        return pd.DataFrame(posterior_rows)
 
 
 class QuantileForestRegressor:
@@ -249,13 +249,13 @@ def _prefix_param_grid(grid: dict, prefix: str = "model__") -> dict:
 
 def _first_param_combo(param_grid: dict) -> dict:
     """Return a deterministic single-configuration dict from a grid."""
-    out = {}
+    first_combo = {}
     for key, values in param_grid.items():
         if isinstance(values, (list, tuple, np.ndarray)) and len(values) > 0:
-            out[key] = [values[0]]
+            first_combo[key] = [values[0]]
         else:
-            out[key] = [values]
-    return out
+            first_combo[key] = [values]
+    return first_combo
 
 
 def train_xgb(X_train: np.ndarray, y_train: np.ndarray,
