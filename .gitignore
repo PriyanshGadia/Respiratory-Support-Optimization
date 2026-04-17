@@ -1,0 +1,41 @@
+# Python cache and virtual environments
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# Tooling and test caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+
+# Notebook artifacts
+.ipynb_checkpoints/
+
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Generated project artifacts
+analysis/logs/
+analysis/models/
+analysis/preprocessed/
+analysis/splits/
+analysis/valve_export/
+analysis/valve_export_dualpath_concept/
+
+# Large local datasets (keep lightweight repo metadata/docs/code only)
+data/**
+!data/.gitkeep
