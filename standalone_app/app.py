@@ -293,7 +293,6 @@ class StandaloneTesterApp:
             return
 
         try:
-            self._log("debug: entered report export flow")
             if self.last_batch_result is not None:
                 paths = export_batch_report(self.last_batch_result, out_dir)
             elif self.last_result is not None:
