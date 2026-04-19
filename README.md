@@ -1,4 +1,4 @@
-# IPD REBOOT
+# Respiratory Support Optimization
 ## Dynamic Flow-Termination Transients in Pressure Support Ventilation
 
 This README is written as a practical handoff: what we built, what failed, what improved, and what still blocks hardware transition.
