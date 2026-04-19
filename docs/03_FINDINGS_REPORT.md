@@ -1,10 +1,6 @@
 # Phase 2 Analysis — Findings Report
 
-This report keeps both positive and negative results visible so model behavior and design decisions remain auditable.
-
-Phase 3 handoff note (2026-03-19): Mechanical design interpretation has been moved to a safety-gated redesign baseline in 04_PHASE3_MECHANICAL_DESIGN.md. Prior "final/ready" mechanical claims are deprecated.
-
-> **Generated:** 2026-03-17 02:33:20  
+> **Generated:** 2026-04-19 20:01:24  
 > **Analysis protocol revision:** v1.2  
 > **Python environment:** c:/Users/gadia/Programming/IPD/.venv
 

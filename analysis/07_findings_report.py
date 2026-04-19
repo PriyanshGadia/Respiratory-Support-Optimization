@@ -12,19 +12,15 @@
 import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 
+import argparse
 import json
 import logging
 import datetime
 import numpy as np
 import pandas as pd
 
-try:
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-except ImportError:
-    matplotlib = None
-    plt = None
+matplotlib = None
+plt = None
 
 import config as C
 
@@ -40,10 +36,129 @@ os.makedirs(FIGURES_DIR, exist_ok=True)
 
 FIGURES: dict[str, str] = {}
 
+_VWD_USECOLS = [
+    "model_score", "delta_paw_max", "dPaw_dt_max", "flow_decel_slope",
+    "f_peak", "insp_dur_s", "exp_dur_s", "paw_base", "ets_frac",
+    "flow_integral_abs",
+]
+
 
 # ---------------------------------------------------------------------------
 # helpers
 # ---------------------------------------------------------------------------
+
+def _import_matplotlib() -> bool:
+    """Import matplotlib lazily to avoid startup hangs during report generation."""
+
+    global matplotlib, plt
+    if plt is not None:
+        return True
+
+    try:
+        mpl_config_dir = os.path.join(C.LOGS_DIR, "mplconfig")
+        os.makedirs(mpl_config_dir, exist_ok=True)
+
+        os.environ.setdefault("MPLCONFIGDIR", mpl_config_dir)
+        os.environ.setdefault("MPLBACKEND", "Agg")
+
+        import matplotlib as _matplotlib
+
+        _matplotlib.use("Agg", force=True)
+        import matplotlib.pyplot as _plt
+
+        matplotlib = _matplotlib
+        plt = _plt
+        return True
+    except Exception as exc:
+        matplotlib = None
+        plt = None
+        log.warning("matplotlib unavailable (%s); skipping figure generation", exc)
+        return False
+
+
+def _build_figures_worker(queue):
+    try:
+        # Worker ignores console interrupts; parent process controls cancellation.
+        try:
+            import signal
+
+            if hasattr(signal, "SIGINT"):
+                signal.signal(signal.SIGINT, signal.SIG_IGN)
+            if hasattr(signal, "SIGBREAK"):
+                signal.signal(signal.SIGBREAK, signal.SIG_IGN)
+        except Exception:
+            pass
+        queue.put(("ok", build_figures()))
+    except BaseException as exc:
+        queue.put(("err", f"{type(exc).__name__}: {exc}"))
+
+
+def build_figures_with_timeout(timeout_s: float) -> dict[str, str]:
+    """Generate figures in a subprocess to avoid blocking report generation."""
+
+    if timeout_s <= 0:
+        return build_figures()
+
+    import multiprocessing as mp
+
+    queue: mp.Queue = mp.Queue(maxsize=1)
+    proc = mp.Process(target=_build_figures_worker, args=(queue,), daemon=True)
+    proc.start()
+
+    import time
+
+    interrupt_count = 0
+    deadline = time.monotonic() + timeout_s
+    while proc.is_alive():
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            log.warning("figure generation timed out after %.0fs; continuing without figures", timeout_s)
+            proc.terminate()
+            try:
+                proc.join(timeout=5)
+            except KeyboardInterrupt:
+                pass
+            return {}
+
+        try:
+            proc.join(timeout=min(0.5, remaining))
+        except KeyboardInterrupt:
+            interrupt_count += 1
+            # One transient interrupt can come from terminal/session events on Windows.
+            if interrupt_count < 2:
+                continue
+            log.warning("figure generation cancelled by user; continuing without figures")
+            if proc.is_alive():
+                proc.terminate()
+                try:
+                    proc.join(timeout=5)
+                except KeyboardInterrupt:
+                    pass
+            return {}
+
+    try:
+        # Allow brief flush time for process->queue handoff on Windows.
+        status, payload = queue.get(timeout=5.0)
+    except Exception:
+        log.warning("figure generation finished but no worker payload received; retrying inline")
+        try:
+            return build_figures()
+        except Exception as exc:
+            log.warning("inline figure generation failed after missing payload: %s", exc)
+            return {}
+
+    if status != "ok":
+        if isinstance(payload, str) and payload.startswith("KeyboardInterrupt"):
+            log.warning("worker interrupted while generating figures; retrying inline")
+            try:
+                return build_figures()
+            except Exception as exc:
+                log.warning("inline figure generation failed after worker interrupt: %s", exc)
+                return {}
+        log.warning("figure generation failed: %s", payload)
+        return {}
+
+    return payload
 
 def _load_json(fname: str) -> dict:
     path = os.path.join(C.LOGS_DIR, fname)
@@ -108,37 +223,53 @@ def _md_image(key: str, alt_text: str) -> list[str]:
     return [f"![{alt_text}]({rel})", ""]
 
 
-def _load_vwd_plot_frame(max_rows: int = 250000) -> pd.DataFrame:
+def _load_vwd_numeric_frame(nrows: int | None = None) -> pd.DataFrame:
+    """
+    Read VWD key columns with robust numeric coercion.
+
+    The VWD score table can contain mixed tokens in numeric columns. We first
+    try a strict float parse for speed and predictable dtypes. If that fails,
+    we retry as string and coerce invalid tokens to NaN so report generation can
+    continue.
+    """
     path = os.path.join(C.LOGS_DIR, "vwd_scores.csv")
     if not os.path.exists(path):
         return pd.DataFrame()
-    usecols = [
-        "model_score", "delta_paw_max", "dPaw_dt_max", "flow_decel_slope",
-        "f_peak", "insp_dur_s", "exp_dur_s", "paw_base", "ets_frac",
-        "flow_integral_abs",
-    ]
+
+    read_kwargs = {
+        "usecols": _VWD_USECOLS,
+        "nrows": nrows,
+        "low_memory": False,
+        "on_bad_lines": "skip",
+    }
+
+    try:
+        return pd.read_csv(path, dtype={c: "float64" for c in _VWD_USECOLS}, **read_kwargs)
+    except Exception as exc:
+        log.warning(
+            "vwd_scores.csv mixed/non-numeric tokens detected; coercing invalid values to NaN (%s)",
+            exc,
+        )
+        frame = pd.read_csv(path, dtype={c: "string" for c in _VWD_USECOLS}, **read_kwargs)
+        for col in _VWD_USECOLS:
+            frame[col] = pd.to_numeric(frame[col], errors="coerce")
+        return frame
+
+
+def _load_vwd_plot_frame(max_rows: int = 250000) -> pd.DataFrame:
     # Read a bounded subset for plotting to avoid very large CSV parse times.
-    return pd.read_csv(path, usecols=usecols, nrows=max_rows, low_memory=True)
+    return _load_vwd_numeric_frame(nrows=max_rows)
 
 
 def _load_vwd_summary_frame() -> pd.DataFrame:
     """
     Load full VWD key columns for summary statistics in the report table.
     """
-    path = os.path.join(C.LOGS_DIR, "vwd_scores.csv")
-    if not os.path.exists(path):
-        return pd.DataFrame()
-    usecols = [
-        "model_score", "delta_paw_max", "dPaw_dt_max", "flow_decel_slope",
-        "f_peak", "insp_dur_s", "exp_dur_s", "paw_base", "ets_frac",
-        "flow_integral_abs",
-    ]
-    return pd.read_csv(path, usecols=usecols, low_memory=True)
+    return _load_vwd_numeric_frame()
 
 
 def build_figures() -> dict[str, str]:
-    if plt is None:
-        log.warning("matplotlib not available; skipping figure generation")
+    if not _import_matplotlib():
         return {}
 
     figures = {}
@@ -886,8 +1017,28 @@ def sec_limitations(lines: list):
 if __name__ == "__main__":
     log.info("Phase 2 — Step 11: Compiling findings report")
 
+    parser = argparse.ArgumentParser(add_help=True)
+    parser.add_argument(
+        "--no-figures",
+        action="store_true",
+        help="Skip generating PNG figures (faster; avoids matplotlib import).",
+    )
+    parser.add_argument(
+        "--figures-timeout-s",
+        type=float,
+        default=300.0,
+        help="Max seconds to spend generating figures (0 = run inline).",
+    )
+    args = parser.parse_args()
+
     FIGURES.clear()
-    FIGURES.update(build_figures())
+    if args.no_figures:
+        log.info("Skipping figure generation (--no-figures)")
+    else:
+        log.info("Generating figures (may take a while on first run)")
+        log.info("Tip: press Ctrl+C to skip figures and still write the report")
+        FIGURES.update(build_figures_with_timeout(args.figures_timeout_s))
+        log.info("Generated %d figure(s)", len(FIGURES))
 
     lines: list[str] = []
     sec_header(lines)
